@@ -31,15 +31,21 @@ def role_required(required_role: str) -> Callable:
         current_user: Dict[str, Any] = Depends(get_current_user),
         db: Session = Depends(get_db)
     ) -> Dict[str, Any]:
-        user = db.query(User).filter(User.username == current_user["username"]).first()
-        role = (user.role or "").strip().lower() if user else ""
+        from app.db.session import SessionLocal
+        session = db if isinstance(db, Session) else SessionLocal()
+        try:
+            user = session.query(User).filter(User.username == current_user["username"]).first()
+            role = (user.role or "").strip().lower() if user else ""
 
-        allowed = ADMIN_ROLES | {required_role.strip().lower()}
-        if role not in allowed:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Permisos insuficientes para realizar esta acción"
-            )
-        return current_user
+            allowed = ADMIN_ROLES | {required_role.strip().lower()}
+            if role not in allowed:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Permisos insuficientes para realizar esta acción"
+                )
+            return current_user
+        finally:
+            if session is not db:
+                session.close()
 
     return dependency

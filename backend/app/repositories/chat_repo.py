@@ -6,9 +6,9 @@ from app.models.user import User
 from app.core.security import get_password_hash
 
 
-def get_chat_history(db: Session) -> List[Dict[str, Any]]:
+def get_chat_history(db: Session, limit: int = 100) -> List[Dict[str, Any]]:
     """Return all chat messages ordered chronologically."""
-    messages = db.query(ChatMessage).order_by(ChatMessage.timestamp).all()
+    messages = db.query(ChatMessage).order_by(ChatMessage.timestamp).limit(limit).all()
     return [
         {
             "id": msg.id,
