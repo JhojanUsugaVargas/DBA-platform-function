@@ -33,7 +33,7 @@ pipeline {
                     env.NEW_VERSION = "v${BASE_VERSION + buildNum}"
                     echo "Construyendo imagen versión: ${env.NEW_VERSION}"
                     
-                    sh "sudo -i bash -c 'export PATH=/usr/local/bin:\$PATH; cd ${WORKSPACE} && nerdctl -n k8s.io build -t datacheck-web:${env.NEW_VERSION} .'"
+                    sh "sudo -i bash -c 'export PATH=/usr/local/bin:\$PATH; cd ${WORKSPACE} && nerdctl -n k8s.io build -t datacheck-web:${env.NEW_VERSION} -f backend/Dockerfile backend'"
                 }
             }
         }

@@ -20,12 +20,28 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+*.coverage
+.pytest_cache/
 
-# Environment variables
+# Node & Angular
+node_modules/
+.angular/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment & Secrets
 .env
+.env.local
 .venv
 venv/
 ENV/
+k8s/secrets.yaml
 
 # IDEs
 .vscode/
@@ -37,4 +53,6 @@ Thumbs.db
 
 # Project specific
 users_list.txt
+models_list.txt
 *.log
+tmp/

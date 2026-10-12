@@ -17,56 +17,75 @@ spec:
         - name: datacheck-web
           image: datacheck-web:v9
           ports:
-            - containerPort: 5000
+            - containerPort: 8000
+              name: http
               protocol: TCP
           env:
-            - name: FLASK_SECRET_KEY
-              valueFrom:
-                configMapKeyRef:
-                  name: datacheck-config
-                  key: FLASK_SECRET_KEY
-            - name: FERNET_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: datacheck-secrets
-                  key: FERNET_KEY
-            - name: ENCRYPTED_CONN_STR
-              valueFrom:
-                secretKeyRef:
-                  name: datacheck-secrets
-                  key: ENCRYPTED_CONN_STR
-            - name: GEMINI_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: datacheck-secrets
-                  key: GEMINI_API_KEY
-            - name: APP_BASE_URL
-              value: "/app/datacheck"
             - name: PORT
               valueFrom:
                 configMapKeyRef:
                   name: datacheck-config
                   key: PORT
-            - name: RECAPTCHA_ENABLED
-              value: "false"
-            - name: ENCRYPTED_AI_CONN_STR
+            - name: APP_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: datacheck-config
+                  key: APP_NAME
+            - name: DB_SCHEMA
+              valueFrom:
+                configMapKeyRef:
+                  name: datacheck-config
+                  key: DB_SCHEMA
+            - name: CORS_ORIGINS
+              valueFrom:
+                configMapKeyRef:
+                  name: datacheck-config
+                  key: CORS_ORIGINS
+            - name: SECRET_KEY
               valueFrom:
                 secretKeyRef:
                   name: datacheck-secrets
-                  key: ENCRYPTED_AI_CONN_STR
-                  optional: true
-            - name: RECAPTCHA_SITE_KEY
+                  key: SECRET_KEY
+            - name: FERNET_KEY
               valueFrom:
                 secretKeyRef:
                   name: datacheck-secrets
-                  key: RECAPTCHA_SITE_KEY
-                  optional: true
-            - name: RECAPTCHA_SECRET_KEY
+                  key: FERNET_KEY
+            - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
                   name: datacheck-secrets
-                  key: RECAPTCHA_SECRET_KEY
+                  key: DATABASE_URL
+            - name: GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: datacheck-secrets
+                  key: GEMINI_API_KEY
                   optional: true
+            - name: SMTP_USER
+              valueFrom:
+                secretKeyRef:
+                  name: datacheck-secrets
+                  key: SMTP_USER
+                  optional: true
+            - name: SMTP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: datacheck-secrets
+                  key: SMTP_PASSWORD
+                  optional: true
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
           resources:
             limits:
               cpu: 500m

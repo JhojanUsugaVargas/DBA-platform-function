@@ -1,0 +1,336 @@
+/* Login Wrapper */
+.login-wrapper {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: transparent; /* Controlled by body in TS */
+    transition: background-color 0.6s ease;
+}
+
+/* STEP 1: LAMP LOGIN */
+.login-step {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 80px;
+    width: 100%;
+    max-width: 900px;
+}
+
+/* Lamp SVG Styling */
+.lamp-container {
+    width: 250px;
+    height: 400px;
+    position: relative;
+    filter: drop-shadow(0 20px 30px rgba(0,0,0,0.5));
+}
+
+.light-beam {
+    fill: url(#beam-grad);
+    opacity: 0;
+    transition: opacity 0.6s ease;
+}
+
+.lamp-on .light-beam {
+    opacity: 1;
+}
+
+.pull-ball:hover {
+    transform: scale(1.2);
+}
+
+/* Glassmorphism Form Card */
+.form-card {
+    background: rgba(40, 40, 40, 0.4);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 20px;
+    padding: 40px;
+    width: 380px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    transition: all 0.6s ease;
+}
+
+.lamp-on .form-card {
+    background: rgba(60, 50, 40, 0.6);
+    border: 1px solid rgba(255, 224, 102, 0.2);
+    box-shadow: 0 10px 50px rgba(255, 224, 102, 0.15);
+}
+
+.form-card h2 {
+    color: white;
+    text-align: center;
+    margin-bottom: 30px;
+    font-weight: 500;
+    letter-spacing: 1px;
+}
+
+.premium-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.input-group label {
+    font-size: 12px;
+    color: rgba(255,255,255,0.5);
+}
+
+.input-group input {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid transparent;
+    padding: 14px 16px;
+    border-radius: 12px;
+    color: white;
+    font-size: 14px;
+    outline: none;
+    transition: all 0.3s ease;
+}
+
+.input-group input:focus {
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Gold Button */
+.gold-btn {
+    margin-top: 10px;
+    background: linear-gradient(90deg, #b8860b, #ffd700, #b8860b);
+    background-size: 200% auto;
+    color: #000;
+    font-weight: 600;
+    font-size: 15px;
+    border: none;
+    padding: 16px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
+}
+
+.gold-btn:hover {
+    background-position: right center;
+    box-shadow: 0 6px 20px rgba(212, 175, 55, 0.5);
+    transform: translateY(-2px);
+}
+
+.gold-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
+
+/* STEP 2: OTP VERIFICATION */
+.otp-step {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+
+.otp-card {
+    background: rgba(25, 25, 25, 0.6);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 24px;
+    padding: 40px;
+    width: 420px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.otp-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.otp-header h2 {
+    color: white;
+    font-size: 22px;
+    font-weight: 500;
+    margin-bottom: 10px;
+}
+
+.otp-header p {
+    color: rgba(255,255,255,0.5);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.otp-inputs {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 40px;
+}
+
+.otp-inputs input {
+    width: 60px;
+    height: 70px;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 16px;
+    color: white;
+    font-size: 28px;
+    text-align: center;
+    outline: none;
+    transition: all 0.3s ease;
+}
+
+.otp-inputs input:focus {
+    border-color: white;
+    box-shadow: 0 0 15px rgba(255,255,255,0.1);
+}
+
+.otp-autofill {
+    background: rgba(40, 40, 40, 0.8);
+    border-radius: 100px;
+    padding: 10px 10px 10px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    cursor: pointer;
+    border: 1px solid rgba(255,255,255,0.05);
+    transition: all 0.2s ease;
+    margin-bottom: 20px;
+}
+
+.otp-autofill:hover {
+    background: rgba(50, 50, 50, 0.9);
+}
+
+.autofill-icon {
+    font-size: 20px;
+    margin-right: 15px;
+}
+
+.autofill-text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.small-text {
+    font-size: 10px;
+    color: rgba(255,255,255,0.4);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.bold-text {
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+.fill-btn {
+    background: white;
+    color: black;
+    border: none;
+    border-radius: 100px;
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.bottom-note {
+    font-size: 11px;
+    color: rgba(255,255,255,0.3);
+    text-align: center;
+}
+
+/* Utilities */
+.error-banner {
+    background: rgba(255, 0, 0, 0.1);
+    border: 1px solid rgba(255, 0, 0, 0.2);
+    color: #ff4d4d;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    margin-bottom: 20px;
+    text-align: center;
+}
+/* Appended CSS for new OTP timer and animations */
+.timer-display {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-align: center;
+    margin: 10px 0 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: color 0.3s ease;
+}
+
+.timer-display.expired {
+    color: var(--red);
+}
+
+.resend-section {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.resend-section p {
+    color: var(--text-muted);
+    font-size: 12px;
+    margin-bottom: 10px;
+}
+
+.resend-btn {
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.resend-btn:hover {
+    background: rgba(220, 165, 70, 0.1);
+}
+
+.resend-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-loader {
+    width: 16px;
+    height: 16px;
+    border: 2px solid transparent;
+    border-top-color: #000;
+    border-radius: 50%;
+    animation: btn-spin 0.8s linear infinite;
+    position: absolute;
+    right: 20px;
+}
+
+@keyframes btn-spin {
+    to { transform: rotate(360deg); }
+}
+
+.gold-btn {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
