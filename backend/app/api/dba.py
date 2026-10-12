@@ -23,6 +23,9 @@ from app.services.dba_queries.disk_space import query_disk_space, query_disk_spa
 from app.services.dba_queries.instance_monitor import query_instance_monitor
 from app.services.dba_queries.job_monitor import query_job_monitor
 from app.services.dba_queries.tempdb_monitor import query_tempdb_usage
+from app.services.dba_queries.blocking_monitor import query_blocking_chain
+from app.services.dba_queries.wait_stats_monitor import query_wait_stats
+from app.services.dba_queries.postgres_diagnostics import query_pg_bloat, query_pg_autovacuum
 
 router = APIRouter()
 
@@ -149,50 +152,71 @@ def action_cpu(user: Dict[str, Any] = Depends(get_current_user)):
     }
 
 
-_BLOQUEOS_QUERY = {
-    "postgres": """
-        SELECT pid AS session, usename AS usuario,
-               array_to_string(pg_blocking_pids(pid), ',') AS bloqueado_por,
-               CAST(EXTRACT(EPOCH FROM (now() - query_start)) AS INT) AS segundos,
-               SUBSTRING(query, 1, 100) AS query_preview
-        FROM pg_stat_activity
-        WHERE wait_event_type = 'Lock'
-    """,
-    "sqlserver": """
-        SELECT r.session_id AS session, s.login_name AS usuario,
-               CAST(r.blocking_session_id AS VARCHAR) AS bloqueado_por,
-               r.total_elapsed_time / 1000 AS segundos,
-               SUBSTRING(st.text, 1, 100) AS query_preview
-        FROM sys.dm_exec_requests r
-        JOIN sys.dm_exec_sessions s ON r.session_id = s.session_id
-        CROSS APPLY sys.dm_exec_sql_text(r.sql_handle) st
-        WHERE r.blocking_session_id <> 0
-    """,
-}
-
-
 @router.get("/bloqueos")
 @safe_action
 def action_bloqueos(user: Dict[str, Any] = Depends(get_current_user)):
+    """Detección en tiempo real de cadenas de bloqueo (Blocker -> Blocked)."""
     with remote_cursor(user["username"]) as (cursor, engine):
-        cursor.execute(_BLOQUEOS_QUERY[engine])
-        rows = cursor.fetchall()
+        data = query_blocking_chain(cursor, engine)
 
-    if not rows:
-        return {"type": "success", "message": "No se detectaron bloqueos activos."}
+    if not data:
+        return {"type": "success", "message": "No se detectaron bloqueos activos en el servidor."}
     return {
         "type": "table",
-        "title": f"{ICON_LOCK} Análisis de Bloqueos",
-        "data": [
-            {
-                "Sesión": str(r[0]),
-                "Usuario": str(r[1]),
-                "Bloqueado_Por": str(r[2]),
-                "Segundos": str(r[3]),
-                "Query": str(r[4]),
-            }
-            for r in rows
-        ],
+        "title": f"{ICON_LOCK} Detección de Bloqueos en Tiempo Real (Blocking Chain)",
+        "data": data,
+    }
+
+
+@router.get("/waitstats")
+@safe_action
+def action_waitstats(user: Dict[str, Any] = Depends(get_current_user)):
+    """Estadísticas de espera del motor filtradas de tareas benignas en segundo plano."""
+    with remote_cursor(user["username"]) as (cursor, engine):
+        data = query_wait_stats(cursor, engine)
+
+    if not data:
+        return {"type": "info", "message": "No se registraron estadísticas de espera activas en este momento."}
+    return {
+        "type": "table",
+        "title": f"{ICON_STOPWATCH} Estadísticas de Espera del Sistema (Wait Stats Filtradas)",
+        "data": data,
+    }
+
+
+@router.get("/pg/bloat")
+@safe_action
+def action_pg_bloat(user: Dict[str, Any] = Depends(get_current_user)):
+    """Estimación de Bloat en tablas y tuplas muertas para PostgreSQL."""
+    with remote_cursor(user["username"]) as (cursor, engine):
+        if engine != "postgres":
+            return {"type": "info", "message": "El diagnóstico de Bloat de tablas aplica a instancias PostgreSQL."}
+        data = query_pg_bloat(cursor)
+
+    if not data:
+        return {"type": "success", "message": "No se detectó bloat significativo en las tablas de usuario."}
+    return {
+        "type": "table",
+        "title": f"{ICON_BROOM} Diagnóstico de Bloat y Tuplas Muertas (PostgreSQL)",
+        "data": data,
+    }
+
+
+@router.get("/pg/autovacuum")
+@safe_action
+def action_pg_autovacuum(user: Dict[str, Any] = Depends(get_current_user)):
+    """Monitoreo de tareas activas de Autovacuum y tablas con rezago en PostgreSQL."""
+    with remote_cursor(user["username"]) as (cursor, engine):
+        if engine != "postgres":
+            return {"type": "info", "message": "El monitor de Autovacuum aplica a instancias PostgreSQL."}
+        data = query_pg_autovacuum(cursor)
+
+    if not data:
+        return {"type": "success", "message": "No hay procesos de autovacuum activos ni tablas con rezago crítico."}
+    return {
+        "type": "table",
+        "title": f"⚙️ Salud de Autovacuum y Mantenimiento (PostgreSQL)",
+        "data": data,
     }
 
 

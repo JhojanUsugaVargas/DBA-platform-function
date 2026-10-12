@@ -51,4 +51,16 @@ export class DbaService {
   getPerformance(): Observable<DbaActionResponse> {
     return this.http.get<DbaActionResponse>(`${this.baseUrl}/performance`);
   }
+
+  getWaitStats(): Observable<DbaActionResponse> {
+    return this.http.get<DbaActionResponse>(`${this.baseUrl}/waitstats`);
+  }
+
+  getPgBloat(): Observable<DbaActionResponse> {
+    return this.http.get<DbaActionResponse>(`${this.baseUrl}/pg/bloat`);
+  }
+
+  getPgAutovacuum(): Observable<DbaActionResponse> {
+    return this.http.get<DbaActionResponse>(`${this.baseUrl}/pg/autovacuum`);
+  }
 }

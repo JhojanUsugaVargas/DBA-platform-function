@@ -36,7 +36,23 @@ from app.schemas.chat import ChatRequest
 from app.schemas.feedback import FeedbackSubmitRequest
 from app.api.auth import login as api_login
 from app.api.admin import list_contracts, list_users, create_contract
-from app.api.dba import action_cancelar, action_status, action_cpu, action_discos, get_historical_cpu
+from app.api.dba import (
+    action_cancelar,
+    action_status,
+    action_cpu,
+    action_discos,
+    get_historical_cpu,
+    action_bloqueos,
+    action_waitstats,
+    action_pg_bloat,
+    action_pg_autovacuum
+)
+from app.services.dba_queries import (
+    query_blocking_chain,
+    query_wait_stats,
+    query_pg_bloat,
+    query_pg_autovacuum
+)
 from app.services import ticket_service, ai_service, remote_db_service
 
 
@@ -348,6 +364,90 @@ class QATestSuite(unittest.TestCase):
         self.assertEqual(len(res.data), 24)
         self.assertTrue(res.simulated)
 
+    def test_def_04_new_dba_endpoints_without_selected_instance(self):
+        """QA-DEF-04: Verify new Erik Darling-inspired endpoints handle missing instance gracefully."""
+        dummy_user = {"id": 99, "username": "unselected_user", "role": "Monitor"}
+
+        res_bloqueos = action_bloqueos(user=dummy_user)
+        self.assertEqual(res_bloqueos.get("type"), "error")
+        self.assertIn("no hay instancia seleccionada", res_bloqueos.get("message").lower())
+
+        res_waits = action_waitstats(user=dummy_user)
+        self.assertEqual(res_waits.get("type"), "error")
+        self.assertIn("no hay instancia seleccionada", res_waits.get("message").lower())
+
+        res_bloat = action_pg_bloat(user=dummy_user)
+        self.assertEqual(res_bloat.get("type"), "error")
+        self.assertIn("no hay instancia seleccionada", res_bloat.get("message").lower())
+
+        res_vacuum = action_pg_autovacuum(user=dummy_user)
+        self.assertEqual(res_vacuum.get("type"), "error")
+        self.assertIn("no hay instancia seleccionada", res_vacuum.get("message").lower())
+
+    def test_srv_04_blocking_chain_query_mock_parser(self):
+        """QA-SRV-04: Test query_blocking_chain row transformation for SQL Server and Postgres."""
+        from unittest.mock import MagicMock
+        mock_cursor = MagicMock()
+        mock_cursor.fetchall.return_value = [
+            ("OrdersDB", 102, "app_user", "host1", "ERP", 88, "sa", "host2", "SSMS", "RUNNING", 15.4, "X", "dbo.Orders", "SELECT * FROM Orders", "UPDATE Orders SET status=1")
+        ]
+        sqlserver_res = query_blocking_chain(mock_cursor, "sqlserver")
+        self.assertEqual(len(sqlserver_res), 1)
+        self.assertEqual(sqlserver_res[0]["Blocked_SPID"], "102")
+        self.assertEqual(sqlserver_res[0]["Blocking_SPID"], "88")
+        self.assertEqual(sqlserver_res[0]["Lock_Mode"], "X")
+
+        mock_cursor.fetchall.return_value = [
+            (2045, "pg_user", "backend_app", "idle in transaction", "Lock: relation", 12.5, 1012, "admin_user", "pgAdmin", "active", "SI (Idle in TX)", 45.2, "SELECT 1", "BEGIN;")
+        ]
+        pg_res = query_blocking_chain(mock_cursor, "postgres")
+        self.assertEqual(len(pg_res), 1)
+        self.assertEqual(pg_res[0]["Blocked_PID"], "2045")
+        self.assertEqual(pg_res[0]["Blocking_PID"], "1012")
+        self.assertEqual(pg_res[0]["Blocker_Idle_In_TX"], "SI (Idle in TX)")
+
+    def test_srv_05_wait_stats_query_mock_parser(self):
+        """QA-SRV-05: Test query_wait_stats row transformation for SQL Server and Postgres."""
+        from unittest.mock import MagicMock
+        mock_cursor = MagicMock()
+        mock_cursor.fetchall.return_value = [
+            ("PAGEIOLATCH_SH", 1540, 120.5, 12.0, 10.0, 78.2)
+        ]
+        sqlserver_res = query_wait_stats(mock_cursor, "sqlserver")
+        self.assertEqual(len(sqlserver_res), 1)
+        self.assertEqual(sqlserver_res[0]["Tipo_Espera"], "PAGEIOLATCH_SH")
+        self.assertEqual(sqlserver_res[0]["CPU_Pressure_Pct"], "10.0%")
+
+        mock_cursor.fetchall.return_value = [
+            ("Lock", "relation", 5, 22.4, "alice, bob", "backend_api")
+        ]
+        pg_res = query_wait_stats(mock_cursor, "postgres")
+        self.assertEqual(len(pg_res), 1)
+        self.assertEqual(pg_res[0]["Wait_Type"], "Lock")
+        self.assertEqual(pg_res[0]["Active_Sessions"], 5)
+
+    def test_srv_06_postgres_diagnostics_mock_parser(self):
+        """QA-SRV-06: Test query_pg_bloat and query_pg_autovacuum row transformation."""
+        from unittest.mock import MagicMock
+        mock_cursor = MagicMock()
+        mock_cursor.fetchall.return_value = [
+            ("public", "invoices", 100000, 25000, 20.0, "50 MB", "40 MB", "10 MB", "2026-10-12 10:00:00", "2026-10-12 10:00:00")
+        ]
+        bloat_res = query_pg_bloat(mock_cursor)
+        self.assertEqual(len(bloat_res), 1)
+        self.assertEqual(bloat_res[0]["Tabla"], "invoices")
+        self.assertEqual(bloat_res[0]["Bloat_Estimado_Pct"], "20.0%")
+
+        mock_cursor.fetchall.side_effect = [
+            [(5541, "postgres", "orders", "scanning heap", 1000, 500, 500, 1, 1500)],  # active
+            [("public", "customers", 800, 10000, 5, 2, "2026-10-11", 8.0)]  # candidates
+        ]
+        vacuum_res = query_pg_autovacuum(mock_cursor)
+        self.assertEqual(len(vacuum_res), 2)
+        self.assertIn("EN EJECUCIÓN", vacuum_res[0]["Estado"])
+        self.assertEqual(vacuum_res[1]["Estado"], "Candidato Autovacuum")
+
 
 if __name__ == "__main__":
     unittest.main()
+
