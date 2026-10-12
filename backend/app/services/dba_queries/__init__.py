@@ -7,6 +7,8 @@ from app.services.dba_queries.job_monitor import query_job_monitor
 from app.services.dba_queries.tempdb_monitor import query_tempdb_usage
 from app.services.dba_queries.blocking_monitor import query_blocking_chain
 from app.services.dba_queries.wait_stats_monitor import query_wait_stats
+from app.services.dba_queries.bloat_fragmentation import query_bloat_fragmentation
+from app.services.dba_queries.maintenance_stats import query_maintenance_stats
 from app.services.dba_queries.postgres_diagnostics import query_pg_bloat, query_pg_autovacuum
 
 __all__ = [
@@ -19,6 +21,8 @@ __all__ = [
     "query_tempdb_usage",
     "query_blocking_chain",
     "query_wait_stats",
+    "query_bloat_fragmentation",
+    "query_maintenance_stats",
     "query_pg_bloat",
     "query_pg_autovacuum",
 ]

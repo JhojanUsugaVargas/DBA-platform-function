@@ -44,14 +44,14 @@ from app.api.dba import (
     get_historical_cpu,
     action_bloqueos,
     action_waitstats,
-    action_pg_bloat,
-    action_pg_autovacuum
+    action_bloat,
+    action_maintenance
 )
 from app.services.dba_queries import (
     query_blocking_chain,
     query_wait_stats,
-    query_pg_bloat,
-    query_pg_autovacuum
+    query_bloat_fragmentation,
+    query_maintenance_stats
 )
 from app.services import ticket_service, ai_service, remote_db_service
 
@@ -376,11 +376,11 @@ class QATestSuite(unittest.TestCase):
         self.assertEqual(res_waits.get("type"), "error")
         self.assertIn("no hay instancia seleccionada", res_waits.get("message").lower())
 
-        res_bloat = action_pg_bloat(user=dummy_user)
+        res_bloat = action_bloat(user=dummy_user)
         self.assertEqual(res_bloat.get("type"), "error")
         self.assertIn("no hay instancia seleccionada", res_bloat.get("message").lower())
 
-        res_vacuum = action_pg_autovacuum(user=dummy_user)
+        res_vacuum = action_maintenance(user=dummy_user)
         self.assertEqual(res_vacuum.get("type"), "error")
         self.assertIn("no hay instancia seleccionada", res_vacuum.get("message").lower())
 
@@ -426,26 +426,52 @@ class QATestSuite(unittest.TestCase):
         self.assertEqual(pg_res[0]["Wait_Type"], "Lock")
         self.assertEqual(pg_res[0]["Active_Sessions"], 5)
 
-    def test_srv_06_postgres_diagnostics_mock_parser(self):
-        """QA-SRV-06: Test query_pg_bloat and query_pg_autovacuum row transformation."""
+    def test_srv_06_bloat_fragmentation_mock_parser(self):
+        """QA-SRV-06: Test query_bloat_fragmentation for SQL Server and Postgres."""
         from unittest.mock import MagicMock
         mock_cursor = MagicMock()
+        # SQL Server
+        mock_cursor.fetchall.return_value = [
+            ("dbo", "Orders", "PK_Orders", "CLUSTERED", 50000, 120.0, 95.0, 25.0, 20.8, 4500, 1200, "Saludable")
+        ]
+        sqlserver_res = query_bloat_fragmentation(mock_cursor, "sqlserver")
+        self.assertEqual(len(sqlserver_res), 1)
+        self.assertEqual(sqlserver_res[0]["Motor"], "SQL Server")
+        self.assertEqual(sqlserver_res[0]["Tabla"], "Orders")
+        self.assertEqual(sqlserver_res[0]["Desperdicio_Bloat"], "20.8%")
+
+        # PostgreSQL
         mock_cursor.fetchall.return_value = [
             ("public", "invoices", 100000, 25000, 20.0, "50 MB", "40 MB", "10 MB", "2026-10-12 10:00:00", "2026-10-12 10:00:00")
         ]
-        bloat_res = query_pg_bloat(mock_cursor)
-        self.assertEqual(len(bloat_res), 1)
-        self.assertEqual(bloat_res[0]["Tabla"], "invoices")
-        self.assertEqual(bloat_res[0]["Bloat_Estimado_Pct"], "20.0%")
+        pg_res = query_bloat_fragmentation(mock_cursor, "postgres")
+        self.assertEqual(len(pg_res), 1)
+        self.assertEqual(pg_res[0]["Motor"], "PostgreSQL")
+        self.assertEqual(pg_res[0]["Tabla"], "invoices")
 
+    def test_srv_07_maintenance_stats_mock_parser(self):
+        """QA-SRV-07: Test query_maintenance_stats for SQL Server and Postgres."""
+        from unittest.mock import MagicMock
+        mock_cursor = MagicMock()
+        # SQL Server
+        mock_cursor.fetchall.return_value = [
+            ("dbo", "Customers", "IX_Customers_Email", 25000, 7500, 30.0, "2026-09-01 12:00:00", 41, "⚠️ CRÍTICO: Recompilar Stats")
+        ]
+        sqlserver_res = query_maintenance_stats(mock_cursor, "sqlserver")
+        self.assertEqual(len(sqlserver_res), 1)
+        self.assertEqual(sqlserver_res[0]["Motor"], "SQL Server")
+        self.assertEqual(sqlserver_res[0]["Tabla"], "Customers")
+        self.assertIn("CRÍTICO", sqlserver_res[0]["Diagnostico"])
+
+        # PostgreSQL
         mock_cursor.fetchall.side_effect = [
-            [(5541, "postgres", "orders", "scanning heap", 1000, 500, 500, 1, 1500)],  # active
+            [(5541, "postgres", "orders", "scanning heap", 1000, 500, 500, 1)],  # active (without dead tuples column)
             [("public", "customers", 800, 10000, 5, 2, "2026-10-11", 8.0)]  # candidates
         ]
-        vacuum_res = query_pg_autovacuum(mock_cursor)
+        vacuum_res = query_maintenance_stats(mock_cursor, "postgres")
         self.assertEqual(len(vacuum_res), 2)
+        self.assertEqual(vacuum_res[0]["Motor"], "PostgreSQL")
         self.assertIn("EN EJECUCIÓN", vacuum_res[0]["Estado"])
-        self.assertEqual(vacuum_res[1]["Estado"], "Candidato Autovacuum")
 
 
 if __name__ == "__main__":

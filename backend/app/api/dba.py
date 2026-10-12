@@ -25,7 +25,8 @@ from app.services.dba_queries.job_monitor import query_job_monitor
 from app.services.dba_queries.tempdb_monitor import query_tempdb_usage
 from app.services.dba_queries.blocking_monitor import query_blocking_chain
 from app.services.dba_queries.wait_stats_monitor import query_wait_stats
-from app.services.dba_queries.postgres_diagnostics import query_pg_bloat, query_pg_autovacuum
+from app.services.dba_queries.bloat_fragmentation import query_bloat_fragmentation
+from app.services.dba_queries.maintenance_stats import query_maintenance_stats
 
 router = APIRouter()
 
@@ -184,38 +185,40 @@ def action_waitstats(user: Dict[str, Any] = Depends(get_current_user)):
     }
 
 
+@router.get("/bloat")
 @router.get("/pg/bloat")
 @safe_action
-def action_pg_bloat(user: Dict[str, Any] = Depends(get_current_user)):
-    """Estimación de Bloat en tablas y tuplas muertas para PostgreSQL."""
+def action_bloat(user: Dict[str, Any] = Depends(get_current_user)):
+    """Diagnóstico de Bloat de tablas y Fragmentación para SQL Server y PostgreSQL."""
     with remote_cursor(user["username"]) as (cursor, engine):
-        if engine != "postgres":
-            return {"type": "info", "message": "El diagnóstico de Bloat de tablas aplica a instancias PostgreSQL."}
-        data = query_pg_bloat(cursor)
+        data = query_bloat_fragmentation(cursor, engine)
 
     if not data:
-        return {"type": "success", "message": "No se detectó bloat significativo en las tablas de usuario."}
+        return {"type": "success", "message": "No se detectó bloat ni fragmentación significativa en las tablas."}
+
+    engine_name = "SQL Server (Espacio y Heaps)" if engine == "sqlserver" else "PostgreSQL (Tuplas Muertas)"
     return {
         "type": "table",
-        "title": f"{ICON_BROOM} Diagnóstico de Bloat y Tuplas Muertas (PostgreSQL)",
+        "title": f"{ICON_BROOM} Diagnóstico de Bloat y Fragmentación: {engine_name}",
         "data": data,
     }
 
 
+@router.get("/maintenance")
 @router.get("/pg/autovacuum")
 @safe_action
-def action_pg_autovacuum(user: Dict[str, Any] = Depends(get_current_user)):
-    """Monitoreo de tareas activas de Autovacuum y tablas con rezago en PostgreSQL."""
+def action_maintenance(user: Dict[str, Any] = Depends(get_current_user)):
+    """Salud de Mantenimiento (Estadísticas en SQL Server / Autovacuum en PostgreSQL)."""
     with remote_cursor(user["username"]) as (cursor, engine):
-        if engine != "postgres":
-            return {"type": "info", "message": "El monitor de Autovacuum aplica a instancias PostgreSQL."}
-        data = query_pg_autovacuum(cursor)
+        data = query_maintenance_stats(cursor, engine)
 
     if not data:
-        return {"type": "success", "message": "No hay procesos de autovacuum activos ni tablas con rezago crítico."}
+        return {"type": "success", "message": "No se encontraron tablas con rezago de mantenimiento ni estadísticas desactualizadas."}
+
+    engine_name = "SQL Server (Estadísticas de Tablas)" if engine == "sqlserver" else "PostgreSQL (Autovacuum)"
     return {
         "type": "table",
-        "title": f"⚙️ Salud de Autovacuum y Mantenimiento (PostgreSQL)",
+        "title": f"⚙️ Salud de Mantenimiento: {engine_name}",
         "data": data,
     }
 

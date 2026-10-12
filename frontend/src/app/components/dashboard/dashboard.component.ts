@@ -398,8 +398,10 @@ export class DashboardComponent implements OnInit {
       case 'alwayson': actionObs = this.dbaService.getAlwaysOn(); break;
       case 'performance': actionObs = this.dbaService.getPerformance(); break;
       case 'waitstats': actionObs = this.dbaService.getWaitStats(); break;
-      case 'pg_bloat': actionObs = this.dbaService.getPgBloat(); break;
-      case 'pg_autovacuum': actionObs = this.dbaService.getPgAutovacuum(); break;
+      case 'bloat':
+      case 'pg_bloat': actionObs = this.dbaService.getBloat(); break;
+      case 'maintenance':
+      case 'pg_autovacuum': actionObs = this.dbaService.getMaintenance(); break;
       case 'cancelar': 
         alert("¡Nueva función! Para forzar cancelación de un proceso, simplemente pídeselo a DataCheck AI en el chat de la esquina inferior derecha. Ej: 'matar 55'");
         this.isLoadingAction = false;

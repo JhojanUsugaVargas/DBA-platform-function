@@ -56,11 +56,19 @@ export class DbaService {
     return this.http.get<DbaActionResponse>(`${this.baseUrl}/waitstats`);
   }
 
+  getBloat(): Observable<DbaActionResponse> {
+    return this.http.get<DbaActionResponse>(`${this.baseUrl}/bloat`);
+  }
+
+  getMaintenance(): Observable<DbaActionResponse> {
+    return this.http.get<DbaActionResponse>(`${this.baseUrl}/maintenance`);
+  }
+
   getPgBloat(): Observable<DbaActionResponse> {
-    return this.http.get<DbaActionResponse>(`${this.baseUrl}/pg/bloat`);
+    return this.getBloat();
   }
 
   getPgAutovacuum(): Observable<DbaActionResponse> {
-    return this.http.get<DbaActionResponse>(`${this.baseUrl}/pg/autovacuum`);
+    return this.getMaintenance();
   }
 }
