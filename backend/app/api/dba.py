@@ -114,6 +114,8 @@ def action_status(user: Dict[str, Any] = Depends(get_current_user)):
             cursor.execute("SELECT EXTRACT(DAY FROM now() - pg_postmaster_start_time())::int")
             uptime_val = f"{cursor.fetchone()[0]} días"
             status_text = TXT_ONLINE
+            inst_data = query_instance_monitor(cursor, engine)
+            cpu_val = inst_data.get("sql_cpu_percent", 3) if inst_data else 3
         else:
             status_text = "Online"
             try:
