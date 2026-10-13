@@ -1,0 +1,165 @@
+import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable } from 'rxjs';
+import { environment } from '../../../environments/environment';
+import { Contract, Instance, HistoricalCpuData, UserProfile } from '../models';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class ApiService {
+  private readonly baseUrl = environment.apiUrl;
+
+  constructor(private http: HttpClient) {}
+
+  // Contratos e Instancias
+  getContracts(): Observable<Contract[]> {
+    return this.http.get<Contract[]>(`${this.baseUrl}/admin/contracts`);
+  }
+
+  createContract(name: string): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/admin/contracts`, { name });
+  }
+
+  updateContract(id: number, name: string): Observable<any> {
+    return this.http.put<any>(`${this.baseUrl}/admin/contracts/${id}`, { name });
+  }
+
+  deleteContract(id: number): Observable<any> {
+    return this.http.delete<any>(`${this.baseUrl}/admin/contracts/${id}`);
+  }
+
+  getInstances(contractId: number): Observable<Instance[]> {
+    return this.http.get<Instance[]>(`${this.baseUrl}/dba/instances?contract_id=${contractId}`);
+  }
+
+  createInstance(contractId: number, name: string, connStr: string): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/admin/instances`, {
+      contract_id: contractId,
+      name,
+      conn_str: connStr
+    });
+  }
+
+  selectInstance(instanceId: number): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/dba/instances/select?instance_id=${instanceId}`, {});
+  }
+
+  testInstanceConnection(instanceId: number): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/admin/instances/${instanceId}/test`, {});
+  }
+
+  testConnectionString(connStr: string): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/admin/instances/test-connection`, { conn_str: connStr });
+  }
+
+
+  // Gestión de Usuarios
+  getUsers(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/admin/users/all`);
+  }
+
+  createUser(userData: { username: string; role: string; email?: string; password?: string; full_name?: string }): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/admin/users`, userData);
+  }
+
+  changeUserPassword(userId: number, newPassword: string): Observable<any> {
+    return this.http.put<any>(`${this.baseUrl}/admin/users/${userId}/password`, {
+      new_password: newPassword
+    });
+  }
+
+  updateUser(userId: number, userData: { full_name?: string; email?: string; role?: string }): Observable<any> {
+    return this.http.put<any>(`${this.baseUrl}/admin/users/${userId}`, userData);
+  }
+
+  deleteUser(userId: number): Observable<any> {
+    return this.http.delete<any>(`${this.baseUrl}/admin/users/${userId}`);
+  }
+
+  // Mantenimiento Global
+  getMaintenanceStatus(): Observable<any> {
+    return this.http.get<any>(`${this.baseUrl}/admin/system/maintenance`);
+  }
+
+  setMaintenanceStatus(data: { is_active: boolean; title?: string; subtitle?: string; disabled_modules?: string[] }): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/admin/system/maintenance`, data);
+  }
+
+  // Auditoría
+  getAuditLogs(action?: string): Observable<any[]> {
+    let url = `${this.baseUrl}/admin/audit-logs`;
+    if (action) {
+      url += `?action=${action}`;
+    }
+    return this.http.get<any[]>(url);
+  }
+
+  // Métricas Históricas
+  getHistoricalCpu(contractId: number): Observable<HistoricalCpuData> {
+    return this.http.get<HistoricalCpuData>(`${this.baseUrl}/dba/history/cpu?contract_id=${contractId}`);
+  }
+
+  // Feedback y Calificaciones
+  submitFeedback(rating: number, comment: string): Observable<any> {
+    return this.http.post<any>(
+      `${this.baseUrl}/feedback/submit?rating=${rating}&comment=${encodeURIComponent(comment)}`,
+      {}
+    );
+  }
+
+  // Perfil de Usuario
+  getProfile(): Observable<UserProfile> {
+    return this.http.get<UserProfile>(`${this.baseUrl}/auth/profile/me`);
+  }
+
+  updatePassword(data: { old_password: string; new_password: string }): Observable<any> {
+    return this.http.put<any>(`${this.baseUrl}/auth/profile/password`, data);
+  }
+
+  updatePhoto(data: { photo_base64: string }): Observable<any> {
+    return this.http.put<any>(`${this.baseUrl}/auth/profile/photo`, data);
+  }
+
+  toggleMfa(data: { mfa_enabled: boolean }): Observable<any> {
+    return this.http.put<any>(`${this.baseUrl}/auth/profile/mfa`, data);
+  }
+
+  // Gestión Administrativa de Incidentes y Requerimientos (Sin tocar BD directamente)
+  getIncidents(status?: string, ticketType?: string, search?: string): Observable<{ incidents: any[]; stats: any }> {
+    let params: string[] = [];
+    if (status && status !== 'todos') params.push(`status=${encodeURIComponent(status)}`);
+    if (ticketType && ticketType !== 'todos') params.push(`ticket_type=${encodeURIComponent(ticketType)}`);
+    if (search && search.trim()) params.push(`search=${encodeURIComponent(search.trim())}`);
+    
+    const query = params.length > 0 ? `?${params.join('&')}` : '';
+    return this.http.get<{ incidents: any[]; stats: any }>(`${this.baseUrl}/admin/incidents${query}`);
+  }
+
+  createIncident(data: {
+    ticket_type: string;
+    module: string;
+    priority: string;
+    description: string;
+    status?: string;
+    notes?: string;
+    username?: string;
+  }): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/admin/incidents`, data);
+  }
+
+  updateIncident(id: number, data: {
+    status?: string;
+    notes?: string;
+    priority?: string;
+    module?: string;
+    ticket_type?: string;
+    description?: string;
+  }): Observable<any> {
+    return this.http.put<any>(`${this.baseUrl}/admin/incidents/${id}`, data);
+  }
+
+  deleteIncident(id: number): Observable<any> {
+    return this.http.delete<any>(`${this.baseUrl}/admin/incidents/${id}`);
+  }
+}

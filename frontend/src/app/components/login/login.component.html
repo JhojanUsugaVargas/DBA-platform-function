@@ -1,0 +1,83 @@
+﻿<div class="login-wrapper" [class.lamp-on]="isLampOn">
+    <!-- STEP 1: LAMP LOGIN -->
+    <div class="login-step" *ngIf="step === 'login'">
+        <div class="lamp-container">
+            <svg viewBox="0 0 200 400" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="beam-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stop-color="rgba(255, 224, 102, 0.4)" />
+                        <stop offset="100%" stop-color="rgba(255, 224, 102, 0)" />
+                    </linearGradient>
+                </defs>
+                <path d="M70,50 L130,50 L150,120 L50,120 Z" fill="#2c2c2c" class="lamp-head" />
+                <path d="M60,120 L140,120 L200,400 L0,400 Z" class="light-beam lamp-light" />
+                <circle cx="100" cy="130" r="5" fill="#555" class="pull-ball" />
+                <line x1="100" y1="120" x2="100" y2="130" stroke="#555" stroke-width="2" />
+            </svg>
+        </div>
+
+        <div class="form-card login-card">
+            <h2>Welcome</h2>
+            
+            <div class="error-banner" *ngIf="errorMessage">
+                {{ errorMessage }}
+            </div>
+
+            <form (ngSubmit)="onSubmit()" class="premium-form">
+                <div class="input-group">
+                    <label>Username</label>
+                    <input type="text" name="username" [(ngModel)]="username" required placeholder="Enter name" autocomplete="off" (focus)="!isLampOn && toggleLamp()">
+                </div>
+                
+                <div class="input-group">
+                    <label>Password</label>
+                    <input type="password" name="password" [(ngModel)]="password" required placeholder="Enter Password" (focus)="!isLampOn && toggleLamp()">
+                </div>
+
+                <button type="submit" class="gold-btn" [class.loading]="isLoading" [disabled]="isLoading">
+                    <span>{{ isLoading ? 'Checking...' : 'Sign In' }}</span>
+                    <div class="btn-loader" *ngIf="isLoading"></div>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- OTP STEP -->
+    <div class="otp-step" *ngIf="step === 'otp'">
+        <div class="otp-card">
+            <div class="otp-header">
+                <h2>Verify your number</h2>
+                <p>Enter the 4-digit code we sent to {{ username }}</p>
+            </div>
+
+            <div class="timer-display" [class.expired]="timeLeft <= 0">
+                <span class="clock-icon">⏱</span> {{ timerDisplay }}
+            </div>
+
+            <div class="error-banner" *ngIf="errorMessage">
+                {{ errorMessage }}
+            </div>
+
+            <div class="otp-inputs">
+                <input *ngFor="let i of [0,1,2,3]" 
+                       type="text" 
+                       maxlength="1" 
+                       [id]="'otp-' + i"
+                       [name]="'otp-' + i"
+                       [value]="otpCode[i]"
+                       [disabled]="timeLeft <= 0 || isLoading"
+                       (input)="onOtpInput($event, i)"
+                       (keyup)="onOtpKeyup($event, i)"
+                       (keydown)="onOtpKeydown($event, i)"
+                       autocomplete="off">
+            </div>
+
+            <div class="resend-section" *ngIf="timeLeft <= 0">
+                <p>Did you miss the code?</p>
+                <button type="button" class="resend-btn" (click)="resendOtp()" [disabled]="isLoading">
+                    {{ isLoading ? 'Sending...' : 'Send new code' }}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

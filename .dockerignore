@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+.env
+.pytest_cache/
+.vscode/
+.git/
+*.enc
+users_list.txt
+results.txt
+final_results.txt
+check_users.py
+verify_passwords*.py

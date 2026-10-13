@@ -1,0 +1,535 @@
+<div class="incident-portal-wrapper">
+  <!-- Topbar -->
+  <header class="portal-topbar">
+    <div class="topbar-left">
+      <button class="btn-back" (click)="goToDashboard()" title="Volver al Dashboard DBA">
+        <span class="icon">←</span>
+        <span>Volver al Dashboard</span>
+      </button>
+      <div class="topbar-divider"></div>
+      <div class="portal-branding">
+        <span class="brand-badge">ADMIN PORTAL</span>
+        <h1 class="portal-title">Gestión de Incidentes & Requerimientos</h1>
+      </div>
+    </div>
+
+    <div class="topbar-right">
+      <button class="btn-refresh" (click)="loadIncidents()" [disabled]="isLoading" title="Recargar lista">
+        <span class="icon" [class.spin]="isLoading">🔄</span>
+        <span>Actualizar</span>
+      </button>
+      <button class="btn-export-csv" (click)="exportToCsv()" title="Exportar solicitudes a formato CSV / Excel">
+        <span class="icon">📥</span>
+        <span>Exportar CSV</span>
+      </button>
+      <button class="btn-primary-action" (click)="openCreateModal()">
+        <span class="icon">➕</span>
+        <span>Nuevo Ticket</span>
+      </button>
+      <div class="admin-user-pill">
+        <span class="admin-dot"></span>
+        <span class="admin-name">{{ currentUser }}</span>
+        <span class="admin-role-badge">Admin</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="portal-content">
+    <!-- Notice Banner -->
+    <section class="portal-hero-banner">
+      <div class="banner-text">
+        <h2>🛠️ Mesa de Control Operativo DBA</h2>
+        <p>Administra, asigna, añade notas de agente y resuelve incidentes o requerimientos sin necesidad de interactuar directamente con la base de datos.</p>
+      </div>
+      <div class="banner-stat-chip">
+        <span class="chip-label">Eficiencia Operativa</span>
+        <span class="chip-val">100% Sin tocar DB</span>
+      </div>
+    </section>
+
+    <!-- Metrics Cards Strip -->
+    <section class="kpi-metrics-grid">
+      <div class="kpi-card">
+        <div class="kpi-icon-wrapper total">📊</div>
+        <div class="kpi-info">
+          <span class="kpi-label">Total Solicitudes</span>
+          <span class="kpi-number">{{ stats.total }}</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon-wrapper incident">🚨</div>
+        <div class="kpi-info">
+          <span class="kpi-label">Incidentes</span>
+          <span class="kpi-number">{{ stats.incidents_count }}</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon-wrapper req">💡</div>
+        <div class="kpi-info">
+          <span class="kpi-label">Requerimientos</span>
+          <span class="kpi-number">{{ stats.requirements_count }}</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon-wrapper open">🟢</div>
+        <div class="kpi-info">
+          <span class="kpi-label">Abiertos</span>
+          <span class="kpi-number">{{ stats.open }}</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon-wrapper progress">🟡</div>
+        <div class="kpi-info">
+          <span class="kpi-label">En Progreso</span>
+          <span class="kpi-number">{{ stats.in_progress }}</span>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon-wrapper resolved">🔵</div>
+        <div class="kpi-info">
+          <span class="kpi-label">Resueltos / Cerrados</span>
+          <span class="kpi-number">{{ stats.resolved + stats.closed }}</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Filter & Search Toolbar -->
+    <section class="portal-toolbar">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input
+          type="text"
+          placeholder="Buscar por ID, usuario, módulo, descripción o notas..."
+          [(ngModel)]="searchQuery"
+          (input)="onFilterChange()"
+        />
+        <button *ngIf="searchQuery" class="clear-search-btn" (click)="searchQuery = ''; onFilterChange()">✕</button>
+      </div>
+
+      <div class="filters-group">
+        <div class="filter-item">
+          <label>Tipo:</label>
+          <select [(ngModel)]="filterType" (change)="onFilterChange()">
+            <option value="todos">Todos los Tipos</option>
+            <option value="Incidente">🚨 Incidentes</option>
+            <option value="Requerimiento">💡 Requerimientos</option>
+            <option value="Soporte">🛠️ Soporte</option>
+          </select>
+        </div>
+
+        <div class="filter-item">
+          <label>Estado:</label>
+          <select [(ngModel)]="filterStatus" (change)="onFilterChange()">
+            <option value="todos">Todos los Estados</option>
+            <option value="Abierto">🟢 Abierto</option>
+            <option value="En Progreso">🟡 En Progreso</option>
+            <option value="Resuelto">🔵 Resuelto</option>
+            <option value="Cerrado">⚫ Cerrado</option>
+          </select>
+        </div>
+
+        <div class="filter-item">
+          <label>Prioridad:</label>
+          <select [(ngModel)]="filterPriority" (change)="onFilterChange()">
+            <option value="todos">Todas las Prioridades</option>
+            <option value="Crítica">🔥 Crítica</option>
+            <option value="Alta">⚠️ Alta</option>
+            <option value="Media">⚡ Media</option>
+            <option value="Baja">☕ Baja</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- Incidents Table Section -->
+    <section class="portal-table-container">
+      <div class="table-header-info">
+        <span class="results-count">Mostrando <strong>{{ filteredIncidents.length }}</strong> de <strong>{{ incidents.length }}</strong> tickets</span>
+        <span class="sync-badge">🟢 Base de Datos Sincronizada</span>
+      </div>
+
+      <!-- Loading State -->
+      <div *ngIf="isLoading" class="portal-loading-state">
+        <div class="loading-spinner"></div>
+        <p>Cargando mesa de incidentes y requerimientos...</p>
+      </div>
+
+      <!-- Empty State -->
+      <div *ngIf="!isLoading && filteredIncidents.length === 0" class="portal-empty-state">
+        <div class="empty-icon">📭</div>
+        <h3>No se encontraron incidentes o requerimientos</h3>
+        <p>No hay solicitudes que coincidan con los filtros seleccionados o la bandeja está al día.</p>
+        <button class="btn-create-empty" (click)="openCreateModal()">+ Crear Primera Solicitud</button>
+      </div>
+
+      <!-- Table View -->
+      <div *ngIf="!isLoading && filteredIncidents.length > 0" class="table-responsive">
+        <table class="incident-table">
+          <thead>
+            <tr>
+              <th style="width: 80px;">Ticket</th>
+              <th style="width: 140px;">Tipo</th>
+              <th style="width: 110px;">Prioridad</th>
+              <th style="width: 140px;">SLA Atención</th>
+              <th style="width: 140px;">Módulo</th>
+              <th style="width: 180px;">Solicitante</th>
+              <th>Descripción</th>
+              <th style="width: 140px;">Estado</th>
+              <th style="width: 220px;">Notas de Resolución</th>
+              <th style="width: 140px; text-align: center;">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of filteredIncidents" [class.highlight-resolved]="item.status === 'Resuelto'">
+              <!-- ID -->
+              <td>
+                <span class="ticket-id-tag">#{{ item.id }}</span>
+              </td>
+
+              <!-- Tipo -->
+              <td>
+                <span class="type-pill" [ngClass]="item.ticket_type.toLowerCase()">
+                  <span *ngIf="item.ticket_type === 'Incidente'">🚨</span>
+                  <span *ngIf="item.ticket_type === 'Requerimiento'">💡</span>
+                  <span *ngIf="item.ticket_type !== 'Incidente' && item.ticket_type !== 'Requerimiento'">🛠️</span>
+                  {{ item.ticket_type }}
+                </span>
+              </td>
+
+              <!-- Prioridad -->
+              <td>
+                <span class="priority-badge" [ngClass]="item.priority.toLowerCase()">
+                  {{ item.priority }}
+                </span>
+              </td>
+
+              <!-- SLA -->
+              <td>
+                <span class="sla-badge" [ngClass]="getSlaBadge(item).class">
+                  {{ getSlaBadge(item).icon }} {{ getSlaBadge(item).label }}
+                </span>
+              </td>
+
+              <!-- Módulo -->
+              <td>
+                <span class="module-chip">{{ item.module }}</span>
+              </td>
+
+              <!-- Usuario Solicitante -->
+              <td>
+                <div class="user-meta">
+                  <span class="user-avatar-small">{{ item.username.substring(0,2).toUpperCase() }}</span>
+                  <div class="user-details">
+                    <span class="user-name">{{ item.user_full_name || item.username }}</span>
+                    <span class="user-sub">{{ item.username }}</span>
+                  </div>
+                </div>
+              </td>
+
+              <!-- Descripción -->
+              <td>
+                <div class="desc-cell" (click)="openViewModal(item)" title="Ver descripción completa">
+                  <p class="desc-text">{{ item.description }}</p>
+                  <span class="created-date" *ngIf="item.created_at">📅 {{ item.created_at | date:'dd/MM/yyyy HH:mm' }}</span>
+                </div>
+              </td>
+
+              <!-- Estado -->
+              <td>
+                <div class="status-dropdown-wrapper">
+                  <select
+                    [ngModel]="item.status"
+                    (ngModelChange)="quickStatusChange(item, $event)"
+                    class="status-select"
+                    [ngClass]="item.status.toLowerCase().replace(' ', '-')"
+                  >
+                    <option value="Abierto">🟢 Abierto</option>
+                    <option value="En Progreso">🟡 En Progreso</option>
+                    <option value="Resuelto">🔵 Resuelto</option>
+                    <option value="Cerrado">⚫ Cerrado</option>
+                  </select>
+                </div>
+              </td>
+
+              <!-- Notas de Resolución -->
+              <td>
+                <div class="notes-cell" (click)="openEditModal(item)">
+                  <p *ngIf="item.notes" class="notes-content">📝 {{ item.notes }}</p>
+                  <span *ngIf="!item.notes" class="notes-empty">+ Añadir nota técnica</span>
+                </div>
+              </td>
+
+              <!-- Acciones -->
+              <td>
+                <div class="actions-cell">
+                  <button class="btn-action edit" (click)="openEditModal(item)" title="Editar / Resolver">
+                    ✏️
+                  </button>
+                  <button class="btn-action view" (click)="openViewModal(item)" title="Ver Detalle">
+                    👁️
+                  </button>
+                  <button class="btn-action delete" (click)="deleteTicket(item)" title="Eliminar Ticket">
+                    🗑️
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- =========================================================================
+       MODAL: REGISTRAR NUEVO INCIDENTE O REQUERIMIENTO
+       ========================================================================= -->
+  <div *ngIf="isCreateModalOpen" class="modal-backdrop" (click)="closeCreateModal()">
+    <div class="modal-dialog glass-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="header-titles">
+          <h3>➕ Registrar Nueva Solicitud</h3>
+          <p class="modal-subtitle">Se almacenará en la base de datos de manera formal sin necesidad de SQL manual.</p>
+        </div>
+        <button class="modal-close-btn" (click)="closeCreateModal()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label>Tipo de Solicitud *</label>
+            <select [(ngModel)]="newTicket.ticket_type" class="modal-input">
+              <option value="Incidente">🚨 Incidente (Falla, Error o Lentitud)</option>
+              <option value="Requerimiento">💡 Requerimiento (Acceso, Script, Configuración)</option>
+              <option value="Soporte">🛠️ Soporte General</option>
+            </select>
+          </div>
+
+          <div class="form-group flex-1">
+            <label>Prioridad *</label>
+            <select [(ngModel)]="newTicket.priority" class="modal-input">
+              <option value="Crítica">🔥 Crítica (Impacto Severo)</option>
+              <option value="Alta">⚠️ Alta</option>
+              <option value="Media">⚡ Media</option>
+              <option value="Baja">☕ Baja</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label>Módulo / Componente Afectado</label>
+            <select [(ngModel)]="newTicket.module" class="modal-input">
+              <option value="Base de Datos">🗄️ Base de Datos (SQL Server / PostgreSQL)</option>
+              <option value="Rendimiento">⚡ Rendimiento & CPU</option>
+              <option value="Almacenamiento">💾 Almacenamiento & TempDB</option>
+              <option value="Seguridad">🔒 Seguridad & Roles</option>
+              <option value="Jobs / Tareas">📋 Jobs & Agente</option>
+              <option value="General">🌐 General</option>
+            </select>
+          </div>
+
+          <div class="form-group flex-1">
+            <label>Usuario Asignado / Solicitante</label>
+            <select [(ngModel)]="newTicket.username" class="modal-input">
+              <option [value]="currentUser">{{ currentUser }} (Yo)</option>
+              <option *ngFor="let u of availableUsers" [value]="u.username">
+                {{ u.username }} ({{ u.role }})
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Descripción del Problema o Requerimiento *</label>
+          <textarea
+            rows="4"
+            class="modal-input textarea"
+            placeholder="Describe detalladamente el incidente presentado o la necesidad requerida..."
+            [(ngModel)]="newTicket.description"
+          ></textarea>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label>Estado Inicial</label>
+            <select [(ngModel)]="newTicket.status" class="modal-input">
+              <option value="Abierto">🟢 Abierto</option>
+              <option value="En Progreso">🟡 En Progreso</option>
+            </select>
+          </div>
+
+          <div class="form-group flex-2">
+            <label>Notas Iniciales del Administrador (Opcional)</label>
+            <input
+              type="text"
+              class="modal-input"
+              placeholder="Ej. Se asigna al turno de la tarde para análisis de trazas"
+              [(ngModel)]="newTicket.notes"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-cancel" (click)="closeCreateModal()">Cancelar</button>
+        <button class="btn-save" (click)="submitCreateTicket()" [disabled]="isSubmittingCreate">
+          <span *ngIf="!isSubmittingCreate">Guardar y Registrar</span>
+          <span *ngIf="isSubmittingCreate">Registrando...</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL: GESTIONAR Y RESOLVER TICKET (NOTAS DE AGENTE)
+       ========================================================================= -->
+  <div *ngIf="isEditModalOpen" class="modal-backdrop" (click)="closeEditModal()">
+    <div class="modal-dialog glass-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="header-titles">
+          <h3>✏️ Gestión y Resolución de Ticket #{{ editForm.id }}</h3>
+          <p class="modal-subtitle">Actualiza el estado operativo y redacta las notas de resolución para el usuario.</p>
+        </div>
+        <button class="modal-close-btn" (click)="closeEditModal()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="original-ticket-preview">
+          <span class="preview-badge">{{ editForm.ticket_type }} - {{ editForm.module }}</span>
+          <p class="preview-desc">"{{ editForm.description }}"</p>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label>Estado Operativo *</label>
+            <select [(ngModel)]="editForm.status" class="modal-input status-highlight">
+              <option value="Abierto">🟢 Abierto (Pendiente de atención)</option>
+              <option value="En Progreso">🟡 En Progreso (Atendiendo activamente)</option>
+              <option value="Resuelto">🔵 Resuelto (Solución implementada)</option>
+              <option value="Cerrado">⚫ Cerrado (Confirmado y archivado)</option>
+            </select>
+          </div>
+
+          <div class="form-group flex-1">
+            <label>Prioridad</label>
+            <select [(ngModel)]="editForm.priority" class="modal-input">
+              <option value="Crítica">🔥 Crítica</option>
+              <option value="Alta">⚠️ Alta</option>
+              <option value="Media">⚡ Media</option>
+              <option value="Baja">☕ Baja</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>
+            Notas del Agente / Solución Técnica *
+            <span class="label-help">(Esta información es la que el usuario consultará en el seguimiento del chat)</span>
+          </label>
+          <textarea
+            rows="5"
+            class="modal-input textarea agent-notes-area"
+            placeholder="Detalla las acciones realizadas (ej. Se reindexó tabla dbo.Transacciones, se liberó espacio en el LUN y el consumo bajó a rangos normales)..."
+            [(ngModel)]="editForm.notes"
+          ></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Descripción / Observación Original</label>
+          <textarea
+            rows="2"
+            class="modal-input textarea"
+            [(ngModel)]="editForm.description"
+          ></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-cancel" (click)="closeEditModal()">Cancelar</button>
+        <button class="btn-save" (click)="submitUpdateTicket()" [disabled]="isSubmittingEdit">
+          <span *ngIf="!isSubmittingEdit">Guardar Cambios</span>
+          <span *ngIf="isSubmittingEdit">Guardando...</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL: DETALLES COMPLETOS DEL TICKET
+       ========================================================================= -->
+  <div *ngIf="isViewModalOpen && viewingTicket" class="modal-backdrop" (click)="closeViewModal()">
+    <div class="modal-dialog glass-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="header-titles">
+          <h3>📋 Detalle Completo del Ticket #{{ viewingTicket.id }}</h3>
+          <p class="modal-subtitle">Fecha de Registro: {{ viewingTicket.created_at | date:'medium' }}</p>
+        </div>
+        <button class="modal-close-btn" (click)="closeViewModal()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="detail-grid">
+          <div class="detail-item">
+            <span class="label">Tipo:</span>
+            <span class="val">{{ viewingTicket.ticket_type }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">Prioridad:</span>
+            <span class="val">{{ viewingTicket.priority }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">Módulo:</span>
+            <span class="val">{{ viewingTicket.module }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">Estado Actual:</span>
+            <span class="val status-pill" [ngClass]="viewingTicket.status.toLowerCase().replace(' ', '-')">{{ viewingTicket.status }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">Solicitante:</span>
+            <span class="val">{{ viewingTicket.user_full_name }} ({{ viewingTicket.username }})</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">Email:</span>
+            <span class="val">{{ viewingTicket.user_email || 'No registrado' }}</span>
+          </div>
+        </div>
+
+        <div class="detail-section">
+          <h4>Descripción de la Solicitud</h4>
+          <div class="desc-box">{{ viewingTicket.description }}</div>
+        </div>
+
+        <div class="detail-section">
+          <h4>Notas Técnicas del Agente</h4>
+          <div class="notes-box" [class.empty]="!viewingTicket.notes">
+            {{ viewingTicket.notes || 'No se han registrado notas técnicas para este ticket aún.' }}
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-cancel" (click)="closeViewModal()">Cerrar</button>
+        <button class="btn-save" (click)="closeViewModal(); openEditModal(viewingTicket)">
+          Editar / Resolver Ticket
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div *ngIf="toastMessage" class="toast-notification" [ngClass]="toastType">
+    <span class="toast-icon">
+      <span *ngIf="toastType === 'success'">✅</span>
+      <span *ngIf="toastType === 'error'">❌</span>
+      <span *ngIf="toastType === 'info'">ℹ️</span>
+    </span>
+    <span class="toast-text">{{ toastMessage }}</span>
+  </div>
+</div>
