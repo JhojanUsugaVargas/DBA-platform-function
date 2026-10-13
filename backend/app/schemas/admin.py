@@ -69,3 +69,59 @@ class InstanceResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class IncidentCreateRequest(BaseModel):
+    ticket_type: str = "Incidente"  # "Incidente", "Requerimiento", "Soporte"
+    module: str = "General"  # "General", "Base de Datos", "Almacenamiento", etc.
+    priority: str = "Media"  # "Crítica", "Alta", "Media", "Baja"
+    title: Optional[str] = None
+    description: str = Field(min_length=3)
+    username: Optional[str] = None
+    status: str = "Abierto"  # "Abierto", "En Progreso", "Resuelto", "Cerrado"
+    notes: Optional[str] = ""
+
+
+class IncidentUpdateRequest(BaseModel):
+    status: Optional[str] = None
+    notes: Optional[str] = None
+    priority: Optional[str] = None
+    module: Optional[str] = None
+    ticket_type: Optional[str] = None
+    description: Optional[str] = None
+
+
+class IncidentResponse(BaseModel):
+    id: int
+    user_id: int
+    username: str
+    user_full_name: Optional[str] = None
+    user_email: Optional[str] = None
+    rating: int = 0
+    comment: Optional[str] = None
+    ticket_type: str = "Incidente"
+    module: str = "General"
+    priority: str = "Media"
+    description: str
+    status: str = "Abierto"
+    notes: Optional[str] = ""
+    created_at: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class IncidentStatsResponse(BaseModel):
+    total: int = 0
+    open: int = 0
+    in_progress: int = 0
+    resolved: int = 0
+    closed: int = 0
+    incidents_count: int = 0
+    requirements_count: int = 0
+
+
+class IncidentListResponse(BaseModel):
+    incidents: list[IncidentResponse]
+    stats: IncidentStatsResponse
+

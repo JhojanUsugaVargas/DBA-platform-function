@@ -55,6 +55,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   isLoaded: boolean = false;
   currentUser: string = 'User';
   currentUserInitials: string = 'U'; 
+  currentUserRole: string = 'Monitor';
+  canCancelQueries: boolean = false;
 
   // Darling Web / PerformanceMonitor Telemetry State & Tabs
   activeTab: string = 'overview';
@@ -400,6 +402,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
       next: (res) => {
         this.profileForm.mfaEnabled = res.mfa_enabled;
         this.profilePhotoUrl = res.profile_photo;
+        if (res.role) {
+          this.currentUserRole = res.role;
+          this.isAdmin = (res.role === 'Administrador') || (this.currentUser === 'admin');
+          this.canCancelQueries = this.isAdmin || (res.role === 'DBA Principal');
+        }
       },
       error: (err) => console.error("Error loading profile", err)
     });
@@ -908,7 +915,11 @@ Date: 2026-10-12`;
                 this.currentUser = payload.sub;
                 this.currentUserInitials = this.currentUser.substring(0, 2).toUpperCase();
             }
-            this.isAdmin = (payload.role === 'Administrador') || (this.currentUser === 'admin');
+            if (payload.role) {
+                this.currentUserRole = payload.role;
+            }
+            this.isAdmin = (this.currentUserRole === 'Administrador') || (payload.role === 'Administrador') || (this.currentUser === 'admin');
+            this.canCancelQueries = this.isAdmin || (this.currentUserRole === 'DBA Principal') || (payload.role === 'DBA Principal');
         } catch(e) {}
     }
     if (!localStorage.getItem('access_token')) {
@@ -1176,6 +1187,10 @@ Date: 2026-10-12`;
       case 'pg_autovacuum': actionObs = this.dbaService.getMaintenance(); break;
       case 'cancelar': 
         this.isLoadingAction = false;
+        if (!this.canCancelQueries) {
+          alert('⛔ Permisos insuficientes: Solo el Administrador y el DBA Principal tienen autorización para forzar la cancelación de consultas y procesos.');
+          return;
+        }
         this.isChatMinimized = false;
         this.chatInput = "matar ";
         setTimeout(() => {
@@ -1540,5 +1555,9 @@ Date: 2026-10-12`;
         }
       });
     }
+  }
+
+  openIncidentsPortal(): void {
+    this.router.navigate(['/admin/incidents']);
   }
 }

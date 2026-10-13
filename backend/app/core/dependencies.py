@@ -1,5 +1,5 @@
 """Authentication and Authorization FastAPI Dependencies."""
-from typing import Dict, Any, Callable
+from typing import Dict, Any, Callable, Union, List, Set
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
@@ -22,11 +22,18 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, Any
             detail="Credenciales de autenticación inválidas",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    return {"username": username}
+    return {"username": username, "role": payload.get("role")}
 
 
-def role_required(required_role: str) -> Callable:
-    """Dependency factory to verify user has the given role (or is admin)."""
+def role_required(required_role: Union[str, List[str], Set[str]]) -> Callable:
+    """Dependency factory to verify user has one of the required roles (or is admin)."""
+    if isinstance(required_role, (list, tuple, set)):
+        req_set = {r.strip().lower() for r in required_role if isinstance(r, str)}
+    else:
+        req_set = {required_role.strip().lower()}
+
+    allowed = ADMIN_ROLES | req_set
+
     async def dependency(
         current_user: Dict[str, Any] = Depends(get_current_user),
         db: Session = Depends(get_db)
@@ -37,7 +44,6 @@ def role_required(required_role: str) -> Callable:
             user = session.query(User).filter(User.username == current_user["username"]).first()
             role = (user.role or "").strip().lower() if user else ""
 
-            allowed = ADMIN_ROLES | {required_role.strip().lower()}
             if role not in allowed:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
@@ -49,3 +55,4 @@ def role_required(required_role: str) -> Callable:
                 session.close()
 
     return dependency
+

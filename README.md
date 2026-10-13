@@ -70,6 +70,7 @@ flowchart TD
     %% Flujo de Acceso
     A[🔑 Login Page / /login] -->|JWT Auth Success| G{🛡️ AuthGuard}
     G -->|Token Válido| B[🏠 Dashboard Principal / /dashboard]
+    G -->|Admin Exclusivo| INC_PAGE[🎫 Portal de Incidentes & Req. / /admin/incidents]
 
     %% Estructura de la Página Principal
     subgraph LAYOUT["🖥️ Dashboard Layout (Home)"]
@@ -111,11 +112,12 @@ flowchart TD
         S_ACTIONS --> M11["🔗 Nodos AlwaysOn"]
         S_ACTIONS --> M12["📈 Performance General"]
         S_ACTIONS --> M13["🔍 Validar Data y Log"]
-        S_ACTIONS --> M14["❌ Forzar Cancelación (Kill)"]
+        S_ACTIONS --> M14["❌ Forzar Cancelación (Kill - DBA Pral & Admin)"]
 
         SIDEBAR --> S_ADMIN["👥 Configuración & Gobernanza"]
         S_ADMIN --> MOD_AUDIT["📋 Modal Registro de Auditoría Inmutable"]
         S_ADMIN --> MOD_USERS["👥 Modal Gestión de Usuarios (CRUD, Invitar, Clave)"]
+        S_ADMIN --> MOD_INCIDENTS["🎫 Acceso a Mesa de Incidentes & Requerimientos"]
         S_ADMIN --> MOD_PROFILE["👤 Modal Perfil & Seguridad MFA"]
     end
 
@@ -128,12 +130,24 @@ flowchart TD
     end
 
     %% Asignación de Estilos
-    class A,B root;
+    class A,B,INC_PAGE root;
     class G guard;
     class T1,T2,T3,T4,T5,T6,M1,M2,M3,M4,M5,M6,M7,M8,M9,M10,M11,M12,M13,M14 module;
-    class MOD_CONTRACT,MOD_INSTANCE,MOD_AUDIT,MOD_USERS,MOD_PROFILE,ML_CONFIG modal;
+    class MOD_CONTRACT,MOD_INSTANCE,MOD_AUDIT,MOD_USERS,MOD_INCIDENTS,MOD_PROFILE,ML_CONFIG modal;
     class ML_GLOBAL,ML_PARTIAL,ML_TIMER maint;
 ```
+
+### 👥 Matriz de Roles y Permisos (RBAC)
+
+| Módulo / Acción | Administrador | DBA Principal | Monitor |
+| :--- | :---: | :---: | :---: |
+| **Monitoreo & Telemetría en Vivo** | ✅ | ✅ | ✅ |
+| **Consultas de Diagnóstico (CPU, Discos, TempDB, etc.)** | ✅ | ✅ | ✅ |
+| **Forzar Cancelación de Consultas (`KILL` / `pg_terminate_backend`)** | ✅ | ✅ | ❌ *(Bloqueado)* |
+| **Portal de Gestión de Incidentes y Requerimientos** | ✅ | ❌ | ❌ |
+| **Gestión de Usuarios & Invitaciones por Correo** | ✅ | ❌ | ❌ |
+| **Configuración de Ventana de Mantenimiento Global** | ✅ | ❌ | ❌ |
+| **Registro y Eliminación de Instancias/Contratos** | ✅ | ❌ | ❌ |
 
 ### 🧩 Desglose de Componentes y Funcionalidades
 
@@ -141,6 +155,7 @@ flowchart TD
 | :--- | :--- | :--- |
 | **`LoginComponent`** | Página | Acceso seguro con credenciales, validación JWT y opción de doble factor (`OTP/MFA`). |
 | **`DashboardComponent`** | Página / Hub | Contenedor principal de telemetría reactiva, visualización gráfica y gestión DBA. |
+| **`IncidentManagementComponent`** | Página / Portal Admin | **Nueva Mesa de Control de Incidentes y Requerimientos (`/admin/incidents`)**. Permite a los administradores registrar, filtrar por prioridad/tipo, asignar, añadir notas técnicas del agente y resolver solicitudes operativas sin tocar la base de datos directamente. |
 | **`Top Header & KPIs Strip`** | Componente UI | Barra superior con métricas críticas en vivo (CPU %, hilos de conexión, memoria buffer y deadlocks 24h). |
 | **`Sidebar Hierarchy`** | Navegación | Gestión jerárquica con selectors de contratos clientes e instancias de BD registradas. |
 | **`Quick Actions Grid`** | Control | 13 botones de diagnóstico directo que consultan DMVs de SQL Server y catálogos de PostgreSQL. |

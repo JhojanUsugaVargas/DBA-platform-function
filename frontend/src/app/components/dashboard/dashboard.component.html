@@ -89,9 +89,10 @@
                         <span class="action-icon">🔍</span><span>Validar Data y Log</span>
                         <span *ngIf="isModuleDisabled('datalog')" style="font-size: 9px; background: rgba(245,158,11,0.25); color: #fbbf24; border: 1px solid rgba(245,158,11,0.5); padding: 1px 4px; border-radius: 4px; margin-left: auto;">⚙️ En ajuste</span>
                     </button>
-                    <button class="action-btn" [style.opacity]="!isAdmin && isModuleDisabled('cancelar') ? '0.45' : '1'" [style.cursor]="!isAdmin && isModuleDisabled('cancelar') ? 'not-allowed' : 'pointer'" (click)="runAction('cancelar')" [title]="(!isAdmin && isModuleDisabled('cancelar')) ? '⚠️ Módulo en mantenimiento' : ''">
+                    <button class="action-btn" [style.opacity]="!canCancelQueries || (!isAdmin && isModuleDisabled('cancelar')) ? '0.45' : '1'" [style.cursor]="!canCancelQueries || (!isAdmin && isModuleDisabled('cancelar')) ? 'not-allowed' : 'pointer'" (click)="runAction('cancelar')" [title]="!canCancelQueries ? '🔒 Acción restringida a DBA Principal y Administrador' : ((!isAdmin && isModuleDisabled('cancelar')) ? '⚠️ Módulo en mantenimiento' : '')">
                         <span class="action-icon">❌</span><span>Forzar Cancelación</span>
-                        <span *ngIf="isModuleDisabled('cancelar')" style="font-size: 9px; background: rgba(245,158,11,0.25); color: #fbbf24; border: 1px solid rgba(245,158,11,0.5); padding: 1px 4px; border-radius: 4px; margin-left: auto;">⚙️ En ajuste</span>
+                        <span *ngIf="!canCancelQueries" style="font-size: 9px; background: rgba(239,68,68,0.25); color: #f87171; border: 1px solid rgba(239,68,68,0.5); padding: 1px 4px; border-radius: 4px; margin-left: auto;">🔒 DBA Pral</span>
+                        <span *ngIf="canCancelQueries && isModuleDisabled('cancelar')" style="font-size: 9px; background: rgba(245,158,11,0.25); color: #fbbf24; border: 1px solid rgba(245,158,11,0.5); padding: 1px 4px; border-radius: 4px; margin-left: auto;">⚙️ En ajuste</span>
                     </button>
                 </div>
             </div>
@@ -104,6 +105,10 @@
                     </button>
                     <button class="action-btn" (click)="openUserModal()">
                         <span class="action-icon">👥</span><span>Gestión de Usuarios</span>
+                    </button>
+                    <button class="action-btn" *ngIf="isAdmin" (click)="openIncidentsPortal()" title="Portal Administrativo de Incidentes y Requerimientos">
+                        <span class="action-icon">🎫</span><span>Gestión Incidentes & Req.</span>
+                        <span style="font-size: 9px; background: rgba(56,189,248,0.2); color: #38bdf8; border: 1px solid rgba(56,189,248,0.4); padding: 1px 4px; border-radius: 4px; margin-left: auto;">Admin Front</span>
                     </button>
                     <button class="action-btn" (click)="openSupportCenter()">
                         <span class="action-icon">📞</span><span>Centro de Soporte</span>

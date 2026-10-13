@@ -451,7 +451,7 @@ def action_performance(user: Dict[str, Any] = Depends(get_current_user)):
 @safe_action
 def action_cancelar(
     body: CancelSessionRequest,
-    _: Dict[str, Any] = Depends(role_required("Administrador")),
+    _: Dict[str, Any] = Depends(role_required(["Administrador", "DBA Principal"])),
     user: Dict[str, Any] = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):

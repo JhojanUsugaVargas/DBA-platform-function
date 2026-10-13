@@ -63,7 +63,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     if user.mfa_enabled:
         return TokenResponse(access_token="pending", token_type="bearer", requires_mfa=True)
 
-    token = create_access_token({"sub": user.username})
+    token = create_access_token({"sub": user.username, "role": user.role})
     return TokenResponse(access_token=token, token_type="bearer", requires_mfa=False)
 
 
@@ -109,7 +109,7 @@ def verify_otp(req: VerifyOtpRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
 
     _otp_store.pop(req.username, None)
-    token = create_access_token({"sub": user.username})
+    token = create_access_token({"sub": user.username, "role": user.role})
     return TokenResponse(access_token=token, token_type="bearer", requires_mfa=False)
 
 

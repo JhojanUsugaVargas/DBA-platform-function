@@ -22,22 +22,25 @@ router = APIRouter()
 KILL_PATTERN = re.compile(r"\b(matar|kill|desconectar|terminar|cancelar)\b\D*?(\d{1,10})\b", re.IGNORECASE)
 
 
-def _is_admin(db: Session, username: str) -> bool:
+def _can_kill_sessions(db: Session, username: str) -> bool:
     user = user_repo.get_by_username(db, username)
-    return bool(user and (user.role or "").strip().lower() in ADMIN_ROLES)
+    if not user:
+        return False
+    role = (user.role or "").strip().lower()
+    return role in ADMIN_ROLES or role in {"dba principal", "dba_principal", "dba"}
 
 
 def _handle_kill(db: Session, username: str, spid: int) -> str:
-    if not _is_admin(db, username):
+    if not _can_kill_sessions(db, username):
         audit_repo.log_action(
             db=db,
             username=username,
             action="KILL_TRANSACTION",
             target_spid=spid,
             status="UNAUTHORIZED",
-            details="Intento denegado desde el chat: usuario sin rol Administrador."
+            details="Intento denegado desde el chat: usuario sin rol Administrador o DBA Principal."
         )
-        return "⛔ Solo los administradores tienen autorización para terminar procesos."
+        return "⛔ Solo el Administrador y el DBA Principal tienen autorización para cancelar o terminar procesos."
     try:
         with remote_cursor(username) as (cursor, engine):
             kill_session(cursor, engine, spid)

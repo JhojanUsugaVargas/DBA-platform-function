@@ -115,4 +115,42 @@ export class ApiService {
   toggleMfa(data: { mfa_enabled: boolean }): Observable<any> {
     return this.http.put<any>(`${this.baseUrl}/auth/profile/mfa`, data);
   }
+
+  // Gestión Administrativa de Incidentes y Requerimientos (Sin tocar BD directamente)
+  getIncidents(status?: string, ticketType?: string, search?: string): Observable<{ incidents: any[]; stats: any }> {
+    let params: string[] = [];
+    if (status && status !== 'todos') params.push(`status=${encodeURIComponent(status)}`);
+    if (ticketType && ticketType !== 'todos') params.push(`ticket_type=${encodeURIComponent(ticketType)}`);
+    if (search && search.trim()) params.push(`search=${encodeURIComponent(search.trim())}`);
+    
+    const query = params.length > 0 ? `?${params.join('&')}` : '';
+    return this.http.get<{ incidents: any[]; stats: any }>(`${this.baseUrl}/admin/incidents${query}`);
+  }
+
+  createIncident(data: {
+    ticket_type: string;
+    module: string;
+    priority: string;
+    description: string;
+    status?: string;
+    notes?: string;
+    username?: string;
+  }): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/admin/incidents`, data);
+  }
+
+  updateIncident(id: number, data: {
+    status?: string;
+    notes?: string;
+    priority?: string;
+    module?: string;
+    ticket_type?: string;
+    description?: string;
+  }): Observable<any> {
+    return this.http.put<any>(`${this.baseUrl}/admin/incidents/${id}`, data);
+  }
+
+  deleteIncident(id: number): Observable<any> {
+    return this.http.delete<any>(`${this.baseUrl}/admin/incidents/${id}`);
+  }
 }

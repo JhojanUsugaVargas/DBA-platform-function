@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.dependencies import get_current_user, role_required
 from app.core.security import get_password_hash
 from app.db.session import get_db
-from app.repositories import user_repo, contract_repo, audit_repo
+from app.repositories import user_repo, contract_repo, audit_repo, feedback_repo
 from app.services import email_service, maintenance_service
 from app.schemas.admin import (
     UserCreateRequest,
@@ -18,7 +18,12 @@ from app.schemas.admin import (
     ContractUpdateRequest,
     ContractResponse,
     InstanceCreateRequest,
-    InstanceResponse
+    InstanceResponse,
+    IncidentCreateRequest,
+    IncidentUpdateRequest,
+    IncidentResponse,
+    IncidentListResponse,
+    IncidentStatsResponse
 )
 
 router = APIRouter()
@@ -344,4 +349,123 @@ def set_system_maintenance(
         "success": True,
         "maintenance": status_dict
     }
+
+
+# ==============================================================================
+# INCIDENT & REQUIREMENT MANAGEMENT (NO TOUCH DB DIRECTLY)
+# ==============================================================================
+
+@router.get("/incidents", response_model=IncidentListResponse, summary="List incidents and requirements with metrics")
+def list_incidents(
+    status: Optional[str] = None,
+    ticket_type: Optional[str] = None,
+    search: Optional[str] = None,
+    limit: int = 200,
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(role_required("Administrador"))
+):
+    """Retrieve all tickets, incidents, and requirements for administrative handling."""
+    tickets = feedback_repo.get_all_tickets(
+        db=db,
+        status=status,
+        ticket_type=ticket_type,
+        search=search,
+        limit=limit
+    )
+    stats = feedback_repo.get_ticket_stats(db=db)
+    return {
+        "incidents": tickets,
+        "stats": stats
+    }
+
+
+@router.post("/incidents", response_model=IncidentResponse, summary="Create a new incident or requirement")
+def create_incident(
+    req: IncidentCreateRequest,
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(role_required("Administrador"))
+):
+    """Create a new incident/requirement directly from the admin interface without touching the database."""
+    admin_username = _.get("username", "admin") if isinstance(_, dict) else "admin"
+    target_username = req.username or admin_username
+
+    ticket = feedback_repo.create_ticket(
+        db=db,
+        username=target_username,
+        ticket_type=req.ticket_type,
+        module=req.module,
+        priority=req.priority,
+        description=req.description,
+        status=req.status or "Abierto",
+        notes=req.notes or ""
+    )
+
+    audit_repo.log_action(
+        db=db,
+        username=admin_username,
+        action="CREATE_INCIDENT_TICKET",
+        status="SUCCESS",
+        details=f"Ticket #{ticket['id']} creado ({req.ticket_type} - {req.module} - {req.priority}) para {target_username}."
+    )
+
+    return ticket
+
+
+@router.put("/incidents/{incident_id}", response_model=IncidentResponse, summary="Update status and notes of incident")
+def update_incident(
+    incident_id: int,
+    req: IncidentUpdateRequest,
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(role_required("Administrador"))
+):
+    """Update ticket resolution notes, status, priority, or details without direct DB access."""
+    admin_username = _.get("username", "admin") if isinstance(_, dict) else "admin"
+
+    updated = feedback_repo.update_ticket(
+        db=db,
+        ticket_id=incident_id,
+        status=req.status,
+        notes=req.notes,
+        ticket_type=req.ticket_type,
+        module=req.module,
+        priority=req.priority,
+        description=req.description
+    )
+
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ticket o incidente no encontrado.")
+
+    audit_repo.log_action(
+        db=db,
+        username=admin_username,
+        action="UPDATE_INCIDENT_TICKET",
+        status="SUCCESS",
+        details=f"Ticket #{incident_id} actualizado. Estado: '{updated['status']}'. Notas: '{updated['notes'][:60] if updated['notes'] else ''}'."
+    )
+
+    return updated
+
+
+@router.delete("/incidents/{incident_id}", summary="Delete an incident or requirement ticket")
+def delete_incident(
+    incident_id: int,
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(role_required("Administrador"))
+):
+    """Delete an incident or requirement ticket (admin only)."""
+    admin_username = _.get("username", "admin") if isinstance(_, dict) else "admin"
+    ok = feedback_repo.delete_ticket(db, incident_id)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ticket no encontrado.")
+
+    audit_repo.log_action(
+        db=db,
+        username=admin_username,
+        action="DELETE_INCIDENT_TICKET",
+        status="SUCCESS",
+        details=f"Ticket #{incident_id} eliminado del sistema por el administrador."
+    )
+
+    return {"success": True, "message": f"Ticket #{incident_id} eliminado exitosamente."}
+
 
