@@ -406,14 +406,22 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   onPhotoSelected(event: any) {
-    const file = event.target.files[0];
+    const file = event.target.files?.[0];
     if (file) {
+      if (file.size > 3 * 1024 * 1024) {
+        alert('⚠️ La imagen seleccionada es muy pesada (máximo 3 MB). Por favor selecciona una imagen más liviana.');
+        return;
+      }
       const reader = new FileReader();
       reader.onload = (e: any) => {
         this.profilePhotoUrl = e.target.result;
       };
       reader.readAsDataURL(file);
     }
+  }
+
+  removePhoto() {
+    this.profilePhotoUrl = '';
   }
 
   saveProfileChanges() {
@@ -425,8 +433,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
       error: (err) => console.error("Error saving MFA", err)
     });
 
-    // Save Photo if changed
-    if (this.profilePhotoUrl && this.profilePhotoUrl.startsWith('data:image')) {
+    // Save Photo if changed or removed
+    if (this.profilePhotoUrl !== null && this.profilePhotoUrl !== undefined) {
       this.apiService.updatePhoto({ photo_base64: this.profilePhotoUrl }).subscribe({
         next: () => {},
         error: (err) => console.error("Error saving photo", err)
@@ -440,7 +448,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         new_password: this.profileForm.newPassword
       }).subscribe({
         next: (res) => {
-          alert('Contraseña actualizada con éxito');
+          alert('✅ Perfil actualizado exitosamente (contraseña y foto guardadas).');
           this.profileForm.oldPassword = '';
           this.profileForm.newPassword = '';
           this.isSavingProfile = false;
@@ -454,6 +462,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     } else {
       setTimeout(() => {
         this.isSavingProfile = false;
+        alert('✅ Foto de perfil y ajustes guardados con éxito.');
         this.closeProfileModal();
       }, 500);
     }
@@ -912,6 +921,7 @@ Date: 2026-10-12`;
     }, 100);
 
     this.loadContracts();
+    this.loadProfile();
     this.loadChatHistory();
     this.loadTelemetryOverview();
     this.checkServerMaintenanceStatus();
