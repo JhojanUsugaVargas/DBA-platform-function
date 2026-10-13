@@ -1,5 +1,5 @@
 <div class="incident-portal-wrapper">
-  <!-- Topbar -->
+  <!-- Topbar (Original Dashboard Style) -->
   <header class="portal-topbar">
     <div class="topbar-left">
       <button class="btn-back" (click)="goToDashboard()" title="Volver al Dashboard DBA">
@@ -8,8 +8,18 @@
       </button>
       <div class="topbar-divider"></div>
       <div class="portal-branding">
-        <span class="brand-badge">ADMIN PORTAL</span>
-        <h1 class="portal-title">Gestión de Incidentes & Requerimientos</h1>
+        <div class="header-logo-container">
+          <div class="header-icon-badge">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+          </div>
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="portal-title">Gestión de Incidentes & Requerimientos</span>
+              <span class="badge-accent">Mesa de Control DBA</span>
+            </div>
+            <span class="portal-sub">Resolución y asignación centralizada sin modificar directamente la base de datos</span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -19,10 +29,10 @@
         <span>Actualizar</span>
       </button>
       <button class="btn-export-csv" (click)="exportToCsv()" title="Exportar solicitudes a formato CSV / Excel">
-        <span class="icon">📥</span>
+        <span class="icon">📄</span>
         <span>Exportar CSV</span>
       </button>
-      <button class="btn-primary-action" (click)="openCreateModal()">
+      <button class="btn-primary-action" (click)="openCreateModal()" title="Registrar nuevo incidente o requerimiento">
         <span class="icon">➕</span>
         <span>Nuevo Ticket</span>
       </button>
@@ -36,70 +46,124 @@
 
   <!-- Main Container -->
   <main class="portal-content">
-    <!-- Notice Banner -->
+    <!-- Operational Summary Banner (Matching Original Card Style) -->
     <section class="portal-hero-banner">
       <div class="banner-text">
-        <h2>🛠️ Mesa de Control Operativo DBA</h2>
-        <p>Administra, asigna, añade notas de agente y resuelve incidentes o requerimientos sin necesidad de interactuar directamente con la base de datos.</p>
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+          <span style="color: #00e5ff; font-size: 16px;">⚡</span>
+          <h2 style="margin: 0; font-size: 15px; font-weight: 600; color: #ededed;">Mesa de Control Operativo DBA</h2>
+          <span class="pill-green">100% Sin tocar DB</span>
+        </div>
+        <p style="margin: 0; font-size: 12px; color: #a1a1aa;">
+          Supervisa el ciclo de vida de tickets, añade diagnósticos de agente y gestiona SLAs en tiempo real para todas las instancias conectadas.
+        </p>
       </div>
-      <div class="banner-stat-chip">
-        <span class="chip-label">Eficiencia Operativa</span>
-        <span class="chip-val">100% Sin tocar DB</span>
+
+      <div class="banner-summary-stats">
+        <div class="mini-stat">
+          <span class="stat-label">Tasa de Resolución</span>
+          <span class="stat-value" style="color: #00e676;">{{ getPercentage(stats.resolved + stats.closed) }}%</span>
+        </div>
+        <div class="stat-progress-bar">
+          <div class="progress-fill" [style.width.%]="getPercentage(stats.resolved + stats.closed)"></div>
+        </div>
       </div>
     </section>
 
-    <!-- Metrics Cards Strip -->
+    <!-- Metrics Cards Grid (Exact Original Dashboard Format with Dots & Pills) -->
     <section class="kpi-metrics-grid">
-      <div class="kpi-card">
-        <div class="kpi-icon-wrapper total">📊</div>
-        <div class="kpi-info">
-          <span class="kpi-label">Total Solicitudes</span>
+      <!-- Total -->
+      <div class="kpi-card" [class.active-card]="filterStatus === 'todos' && filterType === 'todos'" (click)="clearAllFilters()" title="Clic para ver todas las solicitudes">
+        <div class="kpi-card-header">
+          <div class="card-indicator">
+            <span class="status-dot dot-gray">●</span>
+            <span class="kpi-label">Total Solicitudes</span>
+          </div>
+          <span class="kpi-pill pill-gray">Global</span>
+        </div>
+        <div class="kpi-body">
           <span class="kpi-number">{{ stats.total }}</span>
+          <span class="kpi-sub">Total registradas</span>
         </div>
       </div>
 
-      <div class="kpi-card">
-        <div class="kpi-icon-wrapper incident">🚨</div>
-        <div class="kpi-info">
-          <span class="kpi-label">Incidentes</span>
-          <span class="kpi-number">{{ stats.incidents_count }}</span>
+      <!-- Abiertos -->
+      <div class="kpi-card card-open" [class.active-card]="filterStatus === 'Abierto'" (click)="setStatusFilter('Abierto')" title="Clic para filtrar por tickets Abiertos">
+        <div class="kpi-card-header">
+          <div class="card-indicator">
+            <span class="status-dot dot-green">●</span>
+            <span class="kpi-label">Tickets Abiertos</span>
+          </div>
+          <span class="kpi-pill pill-green">{{ getPercentage(stats.open) }}%</span>
+        </div>
+        <div class="kpi-body">
+          <span class="kpi-number" style="color: #00e676;">{{ stats.open }}</span>
+          <span class="kpi-sub">Pendientes de atención</span>
         </div>
       </div>
 
-      <div class="kpi-card">
-        <div class="kpi-icon-wrapper req">💡</div>
-        <div class="kpi-info">
-          <span class="kpi-label">Requerimientos</span>
-          <span class="kpi-number">{{ stats.requirements_count }}</span>
+      <!-- En Progreso -->
+      <div class="kpi-card card-progress" [class.active-card]="filterStatus === 'En Progreso'" (click)="setStatusFilter('En Progreso')" title="Clic para filtrar por tickets En Progreso">
+        <div class="kpi-card-header">
+          <div class="card-indicator">
+            <span class="status-dot dot-amber">●</span>
+            <span class="kpi-label">En Progreso</span>
+          </div>
+          <span class="kpi-pill pill-amber">{{ getPercentage(stats.in_progress) }}%</span>
+        </div>
+        <div class="kpi-body">
+          <span class="kpi-number" style="color: #fbbf24;">{{ stats.in_progress }}</span>
+          <span class="kpi-sub">En diagnóstico activo</span>
         </div>
       </div>
 
-      <div class="kpi-card">
-        <div class="kpi-icon-wrapper open">🟢</div>
-        <div class="kpi-info">
-          <span class="kpi-label">Abiertos</span>
-          <span class="kpi-number">{{ stats.open }}</span>
+      <!-- Resueltos / Cerrados -->
+      <div class="kpi-card card-resolved" [class.active-card]="filterStatus === 'Resuelto' || filterStatus === 'Cerrado'" (click)="setStatusFilter('Resuelto')" title="Clic para filtrar por tickets Resueltos o Cerrados">
+        <div class="kpi-card-header">
+          <div class="card-indicator">
+            <span class="status-dot dot-cyan">●</span>
+            <span class="kpi-label">Cerrados / Resueltos</span>
+          </div>
+          <span class="kpi-pill pill-cyan">{{ getPercentage(stats.resolved + stats.closed) }}%</span>
+        </div>
+        <div class="kpi-body">
+          <span class="kpi-number" style="color: #38bdf8;">{{ stats.resolved + stats.closed }}</span>
+          <span class="kpi-sub">Casos finalizados</span>
         </div>
       </div>
 
-      <div class="kpi-card">
-        <div class="kpi-icon-wrapper progress">🟡</div>
-        <div class="kpi-info">
-          <span class="kpi-label">En Progreso</span>
-          <span class="kpi-number">{{ stats.in_progress }}</span>
+      <!-- Incidentes -->
+      <div class="kpi-card card-incident" [class.active-card]="filterType === 'Incidente'" (click)="setTypeFilter('Incidente')" title="Clic para filtrar por Incidentes">
+        <div class="kpi-card-header">
+          <div class="card-indicator">
+            <span class="status-dot dot-red">●</span>
+            <span class="kpi-label">Incidentes</span>
+          </div>
+          <span class="kpi-pill pill-red">{{ stats.incidents_count }}</span>
+        </div>
+        <div class="kpi-body">
+          <span class="kpi-number" style="color: #ff5252;">{{ stats.incidents_count }}</span>
+          <span class="kpi-sub">Fallas operativas</span>
         </div>
       </div>
 
-      <div class="kpi-card">
-        <div class="kpi-icon-wrapper resolved">🔵</div>
-        <div class="kpi-info">
-          <span class="kpi-label">Resueltos / Cerrados</span>
-          <span class="kpi-number">{{ stats.resolved + stats.closed }}</span>
+      <!-- Requerimientos -->
+      <div class="kpi-card card-req" [class.active-card]="filterType === 'Requerimiento'" (click)="setTypeFilter('Requerimiento')" title="Clic para filtrar por Requerimientos">
+        <div class="kpi-card-header">
+          <div class="card-indicator">
+            <span class="status-dot dot-purple">●</span>
+            <span class="kpi-label">Requerimientos</span>
+          </div>
+          <span class="kpi-pill pill-purple">{{ stats.requirements_count }}</span>
+        </div>
+        <div class="kpi-body">
+          <span class="kpi-number" style="color: #c084fc;">{{ stats.requirements_count }}</span>
+          <span class="kpi-sub">Solicitudes de cambio</span>
         </div>
       </div>
     </section>
 
-    <!-- Filter & Search Toolbar -->
+    <!-- Quick Status Filter Pills & Toolbar -->
     <section class="portal-toolbar">
       <div class="search-box">
         <span class="search-icon">🔍</span>
@@ -110,6 +174,21 @@
           (input)="onFilterChange()"
         />
         <button *ngIf="searchQuery" class="clear-search-btn" (click)="searchQuery = ''; onFilterChange()">✕</button>
+      </div>
+
+      <div class="quick-status-tabs">
+        <button class="status-tab-btn" [class.active]="filterStatus === 'todos' && filterType === 'todos'" (click)="clearAllFilters()">
+          Todas ({{ stats.total }})
+        </button>
+        <button class="status-tab-btn tab-open" [class.active]="filterStatus === 'Abierto'" (click)="setStatusFilter('Abierto')">
+          <span class="tab-dot dot-green"></span> Abiertos ({{ stats.open }})
+        </button>
+        <button class="status-tab-btn tab-progress" [class.active]="filterStatus === 'En Progreso'" (click)="setStatusFilter('En Progreso')">
+          <span class="tab-dot dot-amber"></span> En Progreso ({{ stats.in_progress }})
+        </button>
+        <button class="status-tab-btn tab-resolved" [class.active]="filterStatus === 'Resuelto' || filterStatus === 'Cerrado'" (click)="setStatusFilter('Resuelto')">
+          <span class="tab-dot dot-cyan"></span> Cerrados ({{ stats.resolved + stats.closed }})
+        </button>
       </div>
 
       <div class="filters-group">
@@ -144,6 +223,10 @@
             <option value="Baja">☕ Baja</option>
           </select>
         </div>
+
+        <button *ngIf="filterStatus !== 'todos' || filterType !== 'todos' || filterPriority !== 'todos' || searchQuery" class="btn-clear-filters" (click)="clearAllFilters()" title="Limpiar todos los filtros">
+          ✕ Limpiar
+        </button>
       </div>
     </section>
 

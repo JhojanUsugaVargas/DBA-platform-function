@@ -124,7 +124,13 @@ export class IncidentManagementComponent implements OnInit {
       }
       // Status filter
       if (this.filterStatus !== 'todos') {
-        if (ticket.status.toLowerCase() !== this.filterStatus.toLowerCase()) {
+        const fs = this.filterStatus.toLowerCase();
+        const ts = (ticket.status || '').toLowerCase();
+        if (fs === 'cerrado' || fs === 'resuelto') {
+          if (ts !== 'cerrado' && ts !== 'resuelto') {
+            return false;
+          }
+        } else if (ts !== fs) {
           return false;
         }
       }
@@ -152,6 +158,37 @@ export class IncidentManagementComponent implements OnInit {
 
   onFilterChange(): void {
     this.applyLocalFilter();
+  }
+
+  setStatusFilter(status: string): void {
+    if (this.filterStatus === status) {
+      this.filterStatus = 'todos';
+    } else {
+      this.filterStatus = status;
+    }
+    this.applyLocalFilter();
+  }
+
+  setTypeFilter(type: string): void {
+    if (this.filterType === type) {
+      this.filterType = 'todos';
+    } else {
+      this.filterType = type;
+    }
+    this.applyLocalFilter();
+  }
+
+  clearAllFilters(): void {
+    this.filterStatus = 'todos';
+    this.filterType = 'todos';
+    this.filterPriority = 'todos';
+    this.searchQuery = '';
+    this.applyLocalFilter();
+  }
+
+  getPercentage(count: number): number {
+    if (!this.stats || !this.stats.total || this.stats.total === 0) return 0;
+    return Math.round((count / this.stats.total) * 100);
   }
 
   openCreateModal(): void {
