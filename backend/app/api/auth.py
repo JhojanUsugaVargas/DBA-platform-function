@@ -27,16 +27,38 @@ router = APIRouter()
 # In-memory OTP storage: username -> {"code": str, "expires": float}
 _otp_store: Dict[str, Dict[str, Any]] = {}
 
+# OWASP A04/A07: In-memory sliding window for brute force defense
+_failed_login_attempts: Dict[str, list] = {}
+MAX_FAILED_ATTEMPTS = 5
+LOCKOUT_SECONDS = 60
+
 
 @router.post("/login", response_model=TokenResponse, summary="User login, returns JWT token or MFA challenge")
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    """Authenticate username and password."""
+    """Authenticate username and password with brute force protection."""
+    username_key = form_data.username.strip().lower()
+    now = time.time()
+
+    # Clean up window and check threshold
+    attempts = [t for t in _failed_login_attempts.get(username_key, []) if now - t < LOCKOUT_SECONDS]
+    _failed_login_attempts[username_key] = attempts
+    if len(attempts) >= MAX_FAILED_ATTEMPTS:
+        remaining = int(LOCKOUT_SECONDS - (now - attempts[0]))
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Demasiados intentos fallidos. Bloqueo de seguridad activo: espera {max(1, remaining)} segundos."
+        )
+
     user = user_repo.get_by_username(db, form_data.username)
     if not user or not verify_password(form_data.password, user.hashed_password):
+        _failed_login_attempts.setdefault(username_key, []).append(now)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Credenciales incorrectas"
         )
+
+    # Success: reset attempts
+    _failed_login_attempts.pop(username_key, None)
 
     if user.mfa_enabled:
         return TokenResponse(access_token="pending", token_type="bearer", requires_mfa=True)

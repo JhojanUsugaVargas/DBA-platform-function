@@ -17,8 +17,28 @@ export class ApiService {
     return this.http.get<Contract[]>(`${this.baseUrl}/admin/contracts`);
   }
 
+  createContract(name: string): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/admin/contracts`, { name });
+  }
+
+  updateContract(id: number, name: string): Observable<any> {
+    return this.http.put<any>(`${this.baseUrl}/admin/contracts/${id}`, { name });
+  }
+
+  deleteContract(id: number): Observable<any> {
+    return this.http.delete<any>(`${this.baseUrl}/admin/contracts/${id}`);
+  }
+
   getInstances(contractId: number): Observable<Instance[]> {
     return this.http.get<Instance[]>(`${this.baseUrl}/dba/instances?contract_id=${contractId}`);
+  }
+
+  createInstance(contractId: number, name: string, connStr: string): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/admin/instances`, {
+      contract_id: contractId,
+      name,
+      conn_str: connStr
+    });
   }
 
   selectInstance(instanceId: number): Observable<any> {
@@ -26,12 +46,44 @@ export class ApiService {
   }
 
   // Gestión de Usuarios
-  createUser(username: string, role: string): Observable<any> {
-    return this.http.post<any>(`${this.baseUrl}/admin/users`, {
-      username,
-      password: 'ChangeMe123!',
-      role
+  getUsers(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/admin/users/all`);
+  }
+
+  createUser(userData: { username: string; role: string; email?: string; password?: string; full_name?: string }): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/admin/users`, userData);
+  }
+
+  changeUserPassword(userId: number, newPassword: string): Observable<any> {
+    return this.http.put<any>(`${this.baseUrl}/admin/users/${userId}/password`, {
+      new_password: newPassword
     });
+  }
+
+  updateUser(userId: number, userData: { full_name?: string; email?: string; role?: string }): Observable<any> {
+    return this.http.put<any>(`${this.baseUrl}/admin/users/${userId}`, userData);
+  }
+
+  deleteUser(userId: number): Observable<any> {
+    return this.http.delete<any>(`${this.baseUrl}/admin/users/${userId}`);
+  }
+
+  // Mantenimiento Global
+  getMaintenanceStatus(): Observable<any> {
+    return this.http.get<any>(`${this.baseUrl}/admin/system/maintenance`);
+  }
+
+  setMaintenanceStatus(data: { is_active: boolean; title?: string; subtitle?: string; disabled_modules?: string[] }): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/admin/system/maintenance`, data);
+  }
+
+  // Auditoría
+  getAuditLogs(action?: string): Observable<any[]> {
+    let url = `${this.baseUrl}/admin/audit-logs`;
+    if (action) {
+      url += `?action=${action}`;
+    }
+    return this.http.get<any[]>(url);
   }
 
   // Métricas Históricas

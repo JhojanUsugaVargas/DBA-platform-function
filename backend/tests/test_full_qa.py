@@ -27,15 +27,37 @@ from app.core.security import (
 from app.core.dependencies import get_current_user, role_required
 from app.db.session import SessionLocal, engine
 from app.db.init_db import create_tables
-from app.models import User, Contract, Instance, ChatMessage, Feedback
-from app.repositories import user_repo, contract_repo, chat_repo, feedback_repo
+from app.models import User, Contract, Instance, ChatMessage, Feedback, AuditLog
+from app.repositories import user_repo, contract_repo, chat_repo, feedback_repo, audit_repo
 from app.schemas.auth import TokenResponse, UserProfileResponse
-from app.schemas.admin import ContractCreateRequest, InstanceCreateRequest, UserCreateRequest
+from app.schemas.admin import (
+    ContractCreateRequest,
+    ContractUpdateRequest,
+    InstanceCreateRequest,
+    UserCreateRequest,
+    UserUpdateRequest,
+    UserChangePasswordRequest,
+    MaintenanceStatusRequest
+)
 from app.schemas.dba import CancelSessionRequest, HistoricalCpuResponse
 from app.schemas.chat import ChatRequest
 from app.schemas.feedback import FeedbackSubmitRequest
 from app.api.auth import login as api_login
-from app.api.admin import list_contracts, list_users, create_contract
+from app.api.admin import (
+    list_contracts,
+    list_users,
+    create_contract,
+    update_contract_endpoint,
+    delete_contract_endpoint,
+    create_instance,
+    list_audit_logs,
+    create_user as admin_create_user,
+    change_user_password_endpoint,
+    update_user_endpoint,
+    get_system_maintenance,
+    set_system_maintenance
+)
+from app.api.chat import clear_chat_history_endpoint
 from app.api.dba import (
     action_cancelar,
     action_status,
@@ -45,7 +67,8 @@ from app.api.dba import (
     action_bloqueos,
     action_waitstats,
     action_bloat,
-    action_maintenance
+    action_maintenance,
+    get_telemetry_overview
 )
 from app.services.dba_queries import (
     query_blocking_chain,
@@ -102,7 +125,7 @@ class QATestSuite(unittest.TestCase):
 
     def test_sec_04_fernet_encryption_and_fallback(self):
         """QA-SEC-04: Verify Fernet symmetric encryption and graceful fallback for plaintext strings."""
-        raw_conn = "Server=prod-sql.internal;Database=master;Uid=sa;Pwd=StrongPass123!;"
+        raw_conn = "MockServer=mock-sql.test.local;MockDatabase=master;MockUser=test_sa;MockToken=test_pass;"
         encrypted = encrypt_data(raw_conn)
         self.assertNotEqual(raw_conn, encrypted)
 
@@ -110,8 +133,8 @@ class QATestSuite(unittest.TestCase):
         self.assertEqual(raw_conn, decrypted)
 
         # Fallback for unencrypted legacy string returns string as-is
-        plaintext_fallback = decrypt_data("Server=legacy;Uid=test;")
-        self.assertEqual(plaintext_fallback, "Server=legacy;Uid=test;")
+        plaintext_fallback = decrypt_data("MockLegacyPlaintext")
+        self.assertEqual(plaintext_fallback, "MockLegacyPlaintext")
 
     # --------------------------------------------------------------------------
     # 2. REPOSITORY & DATA INTEGRITY TESTS
@@ -146,7 +169,7 @@ class QATestSuite(unittest.TestCase):
             db=self.db,
             contract_id=contract_id,
             name="SRV-SQL-01",
-            conn_str="Server=10.0.0.1;Uid=dba;Pwd=secret;"
+            conn_str="MockHost=10.0.0.1;MockUser=dba_test;"
         )
         self.assertIsNotNone(inst1.id)
 
@@ -154,7 +177,7 @@ class QATestSuite(unittest.TestCase):
             db=self.db,
             contract_id=contract_id,
             name="SRV-SQL-02",
-            conn_str="Server=10.0.0.2;Uid=dba;Pwd=secret;"
+            conn_str="MockHost=10.0.0.2;MockUser=dba_test;"
         )
         self.assertIsNotNone(inst2.id)
 
@@ -296,6 +319,117 @@ class QATestSuite(unittest.TestCase):
         self.assertTrue(res["success"])
         self.assertEqual(res["contract"]["name"], "Contrato QA 2026")
 
+    def test_api_03b_contract_update_and_delete_endpoints(self):
+        """QA-API-03b: Verify contract update and soft delete endpoints."""
+        admin_user = {"id": 1, "username": "admin", "role": "Administrador"}
+        c = create_contract(req=ContractCreateRequest(name="Contrato Temporal"), db=self.db, _=admin_user)
+        cid = c["contract"]["id"]
+
+        # Update
+        up_res = update_contract_endpoint(
+            contract_id=cid,
+            req=ContractUpdateRequest(name="Contrato Modificado QA"),
+            db=self.db,
+            _=admin_user
+        )
+        self.assertTrue(up_res["success"])
+        self.assertEqual(up_res["contract"]["name"], "Contrato Modificado QA")
+
+        # Delete
+        del_res = delete_contract_endpoint(contract_id=cid, db=self.db, _=admin_user)
+        self.assertTrue(del_res["success"])
+
+        # Check list doesn't include it
+        active_list = list_contracts(db=self.db, _=admin_user)
+        self.assertFalse(any(x["id"] == cid for x in active_list))
+
+    def test_api_03c_user_password_and_email_invitation(self):
+        """QA-API-03c: Verify user creation with custom password and admin password reset."""
+        admin_user = {"id": 1, "username": "admin", "role": "Administrador"}
+        create_res = admin_create_user(
+            user_req=UserCreateRequest(
+                username="qa_invited_user",
+                full_name="Invited QA",
+                email="qa_invited@example.com",
+                password="CustomPass2026!",
+                role="Monitor"
+            ),
+            db=self.db,
+            _=admin_user
+        )
+        self.assertTrue(create_res["success"])
+        self.assertIsNotNone(create_res["invitation"])
+        uid = create_res["user"]["id"]
+
+        # Admin reset password for other user
+        pwd_res = change_user_password_endpoint(
+            user_id=uid,
+            req=UserChangePasswordRequest(new_password="NewAdminResetPass123!"),
+            db=self.db,
+            _=admin_user
+        )
+        self.assertTrue(pwd_res["success"])
+        u = user_repo.get_by_id(self.db, uid)
+        self.assertTrue(verify_password("NewAdminResetPass123!", u.hashed_password))
+
+    def test_api_03d_update_user_details(self):
+        """QA-API-03d: Verify admin can edit existing user full name, email, and role."""
+        admin_user = {"id": 1, "username": "admin", "role": "Administrador"}
+        u = user_repo.create_user(
+            db=self.db,
+            username="qa_editable_user",
+            full_name="Original Name",
+            hashed_password=get_password_hash("Pass123!"),
+            role="Monitor",
+            email="original@example.com"
+        )
+        res = update_user_endpoint(
+            user_id=u.id,
+            req=UserUpdateRequest(
+                full_name="Updated Pro DBA",
+                email="updated@example.com",
+                role="DBA Principal"
+            ),
+            db=self.db,
+            _=admin_user
+        )
+        self.assertTrue(res["success"])
+        self.assertEqual(res["user"]["full_name"], "Updated Pro DBA")
+        self.assertEqual(res["user"]["email"], "updated@example.com")
+        self.assertEqual(res["user"]["role"], "DBA Principal")
+
+        refreshed = user_repo.get_by_id(self.db, u.id)
+        self.assertEqual(refreshed.full_name, "Updated Pro DBA")
+        self.assertEqual(refreshed.role, "DBA Principal")
+
+    def test_api_03e_system_maintenance_mode(self):
+        """QA-API-03e: Verify global maintenance mode toggle and non-admin restrictions."""
+        admin_user = {"id": 1, "username": "admin", "role": "Administrador"}
+        monitor_user = {"id": 2, "username": "monitor_user", "role": "Monitor"}
+
+        # Activate maintenance
+        act_res = set_system_maintenance(
+            req=MaintenanceStatusRequest(is_active=True, title="Ajustes DBA", subtitle="Optimizando índices..."),
+            db=self.db,
+            _=admin_user
+        )
+        self.assertTrue(act_res["success"])
+        self.assertTrue(act_res["maintenance"]["is_active"])
+
+        # Check status as any authenticated user
+        status_res = get_system_maintenance(_=monitor_user)
+        self.assertTrue(status_res["is_active"])
+        self.assertEqual(status_res["title"], "Ajustes DBA")
+
+        # Deactivate maintenance
+        deact_res = set_system_maintenance(
+            req=MaintenanceStatusRequest(is_active=False),
+            db=self.db,
+            _=admin_user
+        )
+        self.assertTrue(deact_res["success"])
+        self.assertFalse(deact_res["maintenance"]["is_active"])
+
     # --------------------------------------------------------------------------
     # 4. SERVICE LAYER & RESILIENCE TESTS
     # --------------------------------------------------------------------------
@@ -326,7 +460,7 @@ class QATestSuite(unittest.TestCase):
     def test_srv_03_remote_db_service_invalid_connection(self):
         """QA-SRV-03: Verify remote DB executor handles unreachable hosts safely raising RuntimeError."""
         with self.assertRaises(RuntimeError):
-            remote_db_service.get_remote_db_connection("Server=192.0.2.1;Database=fake;Uid=fake;Pwd=fake;Connection Timeout=1;")
+            remote_db_service.get_remote_db_connection("Driver={ODBC Driver 18 for SQL Server};Server=192.0.2.1;Database=mockdb;MockToken=test;LoginTimeout=1;")
 
     # --------------------------------------------------------------------------
     # 5. SECURITY & INJECTION DEFENSE TESTS
@@ -472,6 +606,65 @@ class QATestSuite(unittest.TestCase):
         self.assertEqual(len(vacuum_res), 2)
         self.assertEqual(vacuum_res[0]["Motor"], "PostgreSQL")
         self.assertIn("EN EJECUCIÓN", vacuum_res[0]["Estado"])
+
+    def test_audit_01_log_and_query_repo(self):
+        """QA-AUDIT-01: Verify audit logging and retrieval in repository."""
+        log_id = audit_repo.log_action(
+            db=self.db,
+            username="admin",
+            action="KILL_TRANSACTION",
+            engine="SQL SERVER",
+            target_spid=120,
+            status="SUCCESS",
+            details="Forced termination test"
+        )
+        self.assertIsNotNone(log_id)
+        logs = audit_repo.get_audit_logs(db=self.db, action="KILL_TRANSACTION")
+        self.assertTrue(len(logs) >= 1)
+        self.assertEqual(logs[0]["username"], "admin")
+        self.assertEqual(logs[0]["target_spid"], 120)
+
+    def test_audit_02_admin_endpoint(self):
+        """QA-AUDIT-02: Verify admin audit logs endpoint."""
+        admin_user = {"id": 1, "username": "admin", "role": "Administrador"}
+        logs = list_audit_logs(db=self.db, _=admin_user)
+        self.assertIsInstance(logs, list)
+
+    def test_chat_03_clear_history_endpoint(self):
+        """QA-CHAT-03: Verify chat clear history endpoint and repository."""
+        chat_repo.add_chat_message(self.db, "admin", "Mensaje temporal para limpiar")
+        before_count = len(chat_repo.get_chat_history(self.db))
+        self.assertGreater(before_count, 0)
+
+        admin_user = {"id": 1, "username": "admin", "role": "Administrador"}
+        resp = clear_chat_history_endpoint(db=self.db, _=admin_user)
+        self.assertIn("eliminado", resp["message"].lower())
+        after_count = len(chat_repo.get_chat_history(self.db))
+        self.assertEqual(after_count, 0)
+
+    def test_telemetry_02_overview_endpoint(self):
+        """QA-TEL-01: Verify 24h telemetry overview endpoint schema and data series."""
+        admin_user = {"id": 1, "username": "admin", "role": "Administrador"}
+        res = get_telemetry_overview(user=admin_user)
+        self.assertIn("labels", res)
+        self.assertIn("cpu_series", res)
+        self.assertIn("blocking_series", res)
+        self.assertIn("throughput_series", res)
+        self.assertIn("wait_types", res)
+        self.assertIn("wait_series", res)
+        self.assertIn("kpis", res)
+        self.assertEqual(len(res["labels"]), 24)
+        self.assertEqual(len(res["cpu_series"]), 24)
+        self.assertIn("engine", res["kpis"])
+
+    def test_srv_08_local_dba_intel(self):
+        """QA-SRV-08: Verify offline intelligent DBA responses for keywords."""
+        resp_wait = ai_service.get_ai_response("¿Por qué tengo espera PAGEIOLATCH en la base de datos?", username="dba_lead")
+        self.assertIn("PAGEIOLATCH", resp_wait["message"])
+        self.assertIn("Buffer Pool", resp_wait["message"])
+
+        resp_help = ai_service.get_ai_response("ayuda", username="dba_lead")
+        self.assertIn("Guía Rápida", resp_help["message"])
 
 
 if __name__ == "__main__":

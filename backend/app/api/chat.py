@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user, ADMIN_ROLES
 from app.db.session import get_db
-from app.repositories import chat_repo, user_repo
+from app.repositories import chat_repo, user_repo, audit_repo
 from app.schemas.chat import ChatRequest, ChatResponse, ChatMessageResponse
 from app.services.ai_service import get_ai_response
 from app.services.ticket_service import action_soporte
@@ -19,7 +19,7 @@ from app.services.remote_db_service import (
 
 router = APIRouter()
 
-KILL_PATTERN = re.compile(r"\b(matar|kill|desconectar|terminar)\b\D*?(\d{1,10})\b", re.IGNORECASE)
+KILL_PATTERN = re.compile(r"\b(matar|kill|desconectar|terminar|cancelar)\b\D*?(\d{1,10})\b", re.IGNORECASE)
 
 
 def _is_admin(db: Session, username: str) -> bool:
@@ -29,18 +29,51 @@ def _is_admin(db: Session, username: str) -> bool:
 
 def _handle_kill(db: Session, username: str, spid: int) -> str:
     if not _is_admin(db, username):
-        return "⛔ Solo los administradores pueden terminar sesiones."
+        audit_repo.log_action(
+            db=db,
+            username=username,
+            action="KILL_TRANSACTION",
+            target_spid=spid,
+            status="UNAUTHORIZED",
+            details="Intento denegado desde el chat: usuario sin rol Administrador."
+        )
+        return "⛔ Solo los administradores tienen autorización para terminar procesos."
     try:
         with remote_cursor(username) as (cursor, engine):
             kill_session(cursor, engine, spid)
+            audit_repo.log_action(
+                db=db,
+                username=username,
+                action="KILL_TRANSACTION",
+                engine=engine.upper(),
+                target_spid=spid,
+                status="SUCCESS",
+                details=f"Comando desde chat ejecutado exitosamente para sesión {spid} en {engine.upper()}."
+            )
         return (
             f"✅ ¡Comando ejecutado! Se solicitó terminar la sesión/proceso {spid} "
-            f"en el motor {engine.upper()}."
+            f"en el motor {engine.upper()} (Registrado en auditoría)."
         )
     except NoInstanceSelected:
-        return "⚠️ Selecciona primero una instancia para poder terminar la sesión."
+        audit_repo.log_action(
+            db=db,
+            username=username,
+            action="KILL_TRANSACTION",
+            target_spid=spid,
+            status="FAILED",
+            details="Fallo: No hay instancia de base de datos seleccionada."
+        )
+        return "⚠️ Selecciona primero una instancia en el panel lateral para poder terminar la sesión."
     except Exception as exc:
         logging.exception("Error al terminar la sesión %s", spid)
+        audit_repo.log_action(
+            db=db,
+            username=username,
+            action="KILL_TRANSACTION",
+            target_spid=spid,
+            status="FAILED",
+            details=f"Error al terminar sesión {spid}: {str(exc)}"
+        )
         return (
             f"❌ Error al intentar terminar la sesión {spid}. "
             f"Revisa que exista y tengas permisos. Detalles: {exc}"
@@ -54,6 +87,16 @@ def chat_history(
 ):
     """Retrieve chat history messages."""
     return chat_repo.get_chat_history(db)
+
+
+@router.delete("/history", summary="Clear chat history")
+def clear_chat_history_endpoint(
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(get_current_user)
+):
+    """Delete all persistent chat history."""
+    count = chat_repo.clear_chat_history(db)
+    return {"message": f"Historial de chat eliminado correctamente ({count} mensajes eliminados)."}
 
 
 @router.post("/message", response_model=ChatResponse, summary="Send message to DataCheck Assistant")

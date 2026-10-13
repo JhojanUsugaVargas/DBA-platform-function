@@ -8,6 +8,8 @@ export interface ChatHistoryItem {
   id: number;
   user_id: number;
   content: string;
+  username?: string;
+  is_bot?: boolean;
   timestamp?: string;
 }
 
@@ -25,5 +27,9 @@ export class ChatService {
 
   sendMessage(message: string): Observable<ChatResponse> {
     return this.http.post<ChatResponse>(`${this.baseUrl}/message`, { message });
+  }
+
+  clearHistory(): Observable<any> {
+    return this.http.delete<any>(`${this.baseUrl}/history`);
   }
 }

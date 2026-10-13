@@ -16,4 +16,6 @@ class ChatMessageResponse(BaseModel):
     id: int
     user_id: int
     content: str
+    username: Optional[str] = "User"
+    is_bot: Optional[bool] = False
     timestamp: Optional[str] = None

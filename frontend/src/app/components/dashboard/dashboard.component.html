@@ -14,7 +14,11 @@
             <div style="display: flex; flex-direction: column; gap: 8px;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <p class="sidebar-label" style="margin: 0; padding: 0;">Contrato</p>
-                    <button class="add-btn-sm" title="Nuevo Contrato">+</button>
+                    <div style="display: flex; gap: 4px;">
+                        <button class="add-btn-sm" (click)="openContractModal()" title="Nuevo Contrato">+</button>
+                        <button class="add-btn-sm" (click)="openEditContractModal()" title="Editar Contrato Seleccionado" style="font-size: 11px;">✏️</button>
+                        <button class="add-btn-sm" (click)="confirmDeleteContract()" title="Eliminar Contrato Seleccionado" style="font-size: 11px; color: #ff5252;">🗑️</button>
+                    </div>
                 </div>
                 <select id="contractSelector" class="form-input-sm" [(ngModel)]="selectedContractId" (change)="loadInstances()">
                     <option *ngFor="let contract of contracts" [value]="contract.id">{{ contract.name }}</option>
@@ -22,7 +26,7 @@
 
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
                     <p class="sidebar-label" style="margin: 0; padding: 0;">Instancia SQL</p>
-                    <button class="add-btn-sm" title="Nueva Instancia">+</button>
+                    <button class="add-btn-sm" (click)="openInstanceModal()" title="Nueva Instancia">+</button>
                 </div>
                 <select id="instanceSelector" class="form-input-sm" [(ngModel)]="selectedInstanceId" (change)="onInstanceChange()">
                     <option *ngFor="let instance of instances" [value]="instance.id">{{ instance.name }}</option>
@@ -34,54 +38,70 @@
             <div class="sidebar-section" [@staggerSidebar]="isLoaded">
                 <p class="sidebar-label">Acciones Rápidas</p>
                 <div class="sidebar-actions">
-                    <button class="action-btn" (click)="runAction('status')">
-                        <span class="action-icon">📊</span><span>Estado del Servidor</span>
+                    <button class="action-btn" [class.active]="activeTab === 'overview'" (click)="selectTab('overview')">
+                        <span class="action-icon">📊</span><span>Telemetría 24h</span>
                     </button>
-                    <button class="action-btn" (click)="runAction('cpu')">
+                    <button class="action-btn" [class.active]="activeTab === 'cpu'" [style.opacity]="!isAdmin && isModuleDisabled('cpu') ? '0.45' : '1'" [style.cursor]="!isAdmin && isModuleDisabled('cpu') ? 'not-allowed' : 'pointer'" (click)="selectTab('cpu')" [title]="(!isAdmin && isModuleDisabled('cpu')) ? '⚠️ Módulo en mantenimiento' : ''">
                         <span class="action-icon">⚡</span><span>Monitor de Salud</span>
+                        <span *ngIf="isModuleDisabled('cpu')" style="font-size: 9px; background: rgba(245,158,11,0.25); color: #fbbf24; border: 1px solid rgba(245,158,11,0.5); padding: 1px 4px; border-radius: 4px; margin-left: auto;">⚙️ En ajuste</span>
                     </button>
-                    <button class="action-btn" (click)="runAction('discos')">
-                        <span class="action-icon">💾</span><span>Almacenamiento</span>
-                    </button>
-                    <button class="action-btn" (click)="runAction('tempdb')">
-                        <span class="action-icon">🗂️</span><span>Uso de TempDB</span>
-                    </button>
-                    <button class="action-btn" (click)="runAction('whoisactive')">
-                        <span class="action-icon">👤</span><span>Sesiones Activas</span>
-                    </button>
-                    <button class="action-btn" (click)="runAction('bloqueos')">
-                        <span class="action-icon">🔒</span><span>Análisis de Bloqueos</span>
-                    </button>
-                    <button class="action-btn" (click)="runAction('waitstats')">
+                    <button class="action-btn" [class.active]="activeTab === 'esperas'" [style.opacity]="!isAdmin && isModuleDisabled('esperas') ? '0.45' : '1'" [style.cursor]="!isAdmin && isModuleDisabled('esperas') ? 'not-allowed' : 'pointer'" (click)="selectTab('esperas')" [title]="(!isAdmin && isModuleDisabled('esperas')) ? '⚠️ Módulo en mantenimiento' : ''">
                         <span class="action-icon">⏱️</span><span>Estadísticas de Espera</span>
+                        <span *ngIf="isModuleDisabled('esperas')" style="font-size: 9px; background: rgba(245,158,11,0.25); color: #fbbf24; border: 1px solid rgba(245,158,11,0.5); padding: 1px 4px; border-radius: 4px; margin-left: auto;">⚙️ En ajuste</span>
                     </button>
-                    <button class="action-btn" (click)="runAction('cancelar')">
-                        <span class="action-icon">❌</span><span>Forzar Cancelación</span>
+                    <button class="action-btn" [class.active]="activeTab === 'bloqueos'" [style.opacity]="!isAdmin && isModuleDisabled('bloqueos') ? '0.45' : '1'" [style.cursor]="!isAdmin && isModuleDisabled('bloqueos') ? 'not-allowed' : 'pointer'" (click)="selectTab('bloqueos')" [title]="(!isAdmin && isModuleDisabled('bloqueos')) ? '⚠️ Módulo en mantenimiento' : ''">
+                        <span class="action-icon">🔒</span><span>Análisis de Bloqueos</span>
+                        <span *ngIf="isModuleDisabled('bloqueos')" style="font-size: 9px; background: rgba(245,158,11,0.25); color: #fbbf24; border: 1px solid rgba(245,158,11,0.5); padding: 1px 4px; border-radius: 4px; margin-left: auto;">⚙️ En ajuste</span>
                     </button>
-                    <button class="action-btn" (click)="runAction('datalog')">
-                        <span class="action-icon">🔍</span><span>Validar Data y Log</span>
-                    </button>
-                    <button class="action-btn" (click)="runAction('jobs')">
-                        <span class="action-icon">📋</span><span>Estado de Jobs</span>
-                    </button>
-                    <button class="action-btn" (click)="runAction('alwayson')">
-                        <span class="action-icon">🔗</span><span>Nodos AlwaysOn</span>
-                    </button>
-                    <button class="action-btn" (click)="runAction('performance')">
-                        <span class="action-icon">📈</span><span>Performance General</span>
-                    </button>
-                    <button class="action-btn" (click)="runAction('bloat')">
+                    <button class="action-btn" [class.active]="activeTab === 'bloat'" [style.opacity]="!isAdmin && isModuleDisabled('bloat') ? '0.45' : '1'" [style.cursor]="!isAdmin && isModuleDisabled('bloat') ? 'not-allowed' : 'pointer'" (click)="selectTab('bloat')" [title]="(!isAdmin && isModuleDisabled('bloat')) ? '⚠️ Módulo en mantenimiento' : ''">
                         <span class="action-icon">🧹</span><span>Bloat y Fragmentación</span>
+                        <span *ngIf="isModuleDisabled('bloat')" style="font-size: 9px; background: rgba(245,158,11,0.25); color: #fbbf24; border: 1px solid rgba(245,158,11,0.5); padding: 1px 4px; border-radius: 4px; margin-left: auto;">⚙️ En ajuste</span>
                     </button>
-                    <button class="action-btn" (click)="runAction('maintenance')">
-                        <span class="action-icon">⚙️</span><span>Salud de Mantenimiento</span>
+                    <button class="action-btn" [class.active]="activeTab === 'mantenimiento'" [style.opacity]="!isAdmin && isModuleDisabled('mantenimiento') ? '0.45' : '1'" [style.cursor]="!isAdmin && isModuleDisabled('mantenimiento') ? 'not-allowed' : 'pointer'" (click)="selectTab('mantenimiento')" [title]="(!isAdmin && isModuleDisabled('mantenimiento')) ? '⚠️ Módulo en mantenimiento' : ''">
+                        <span class="action-icon">⚙️</span><span>Salud Mantenimiento</span>
+                        <span *ngIf="isModuleDisabled('mantenimiento')" style="font-size: 9px; background: rgba(245,158,11,0.25); color: #fbbf24; border: 1px solid rgba(245,158,11,0.5); padding: 1px 4px; border-radius: 4px; margin-left: auto;">⚙️ En ajuste</span>
+                    </button>
+                    <button class="action-btn" [class.active]="activeTab === 'discos'" [style.opacity]="!isAdmin && isModuleDisabled('discos') ? '0.45' : '1'" [style.cursor]="!isAdmin && isModuleDisabled('discos') ? 'not-allowed' : 'pointer'" (click)="selectTab('discos')" [title]="(!isAdmin && isModuleDisabled('discos')) ? '⚠️ Módulo en mantenimiento' : ''">
+                        <span class="action-icon">💾</span><span>Almacenamiento</span>
+                        <span *ngIf="isModuleDisabled('discos')" style="font-size: 9px; background: rgba(245,158,11,0.25); color: #fbbf24; border: 1px solid rgba(245,158,11,0.5); padding: 1px 4px; border-radius: 4px; margin-left: auto;">⚙️ En ajuste</span>
+                    </button>
+                    <button class="action-btn" [class.active]="activeTab === 'tempdb'" [style.opacity]="!isAdmin && isModuleDisabled('tempdb') ? '0.45' : '1'" [style.cursor]="!isAdmin && isModuleDisabled('tempdb') ? 'not-allowed' : 'pointer'" (click)="selectTab('tempdb')" [title]="(!isAdmin && isModuleDisabled('tempdb')) ? '⚠️ Módulo en mantenimiento' : ''">
+                        <span class="action-icon">🗂️</span><span>Uso de TempDB</span>
+                        <span *ngIf="isModuleDisabled('tempdb')" style="font-size: 9px; background: rgba(245,158,11,0.25); color: #fbbf24; border: 1px solid rgba(245,158,11,0.5); padding: 1px 4px; border-radius: 4px; margin-left: auto;">⚙️ En ajuste</span>
+                    </button>
+                    <button class="action-btn" [class.active]="activeTab === 'whoisactive'" [style.opacity]="!isAdmin && isModuleDisabled('whoisactive') ? '0.45' : '1'" [style.cursor]="!isAdmin && isModuleDisabled('whoisactive') ? 'not-allowed' : 'pointer'" (click)="selectTab('whoisactive')" [title]="(!isAdmin && isModuleDisabled('whoisactive')) ? '⚠️ Módulo en mantenimiento' : ''">
+                        <span class="action-icon">👤</span><span>Sesiones Activas</span>
+                        <span *ngIf="isModuleDisabled('whoisactive')" style="font-size: 9px; background: rgba(245,158,11,0.25); color: #fbbf24; border: 1px solid rgba(245,158,11,0.5); padding: 1px 4px; border-radius: 4px; margin-left: auto;">⚙️ En ajuste</span>
+                    </button>
+                    <button class="action-btn" [class.active]="activeTab === 'jobs'" [style.opacity]="!isAdmin && isModuleDisabled('jobs') ? '0.45' : '1'" [style.cursor]="!isAdmin && isModuleDisabled('jobs') ? 'not-allowed' : 'pointer'" (click)="selectTab('jobs')" [title]="(!isAdmin && isModuleDisabled('jobs')) ? '⚠️ Módulo en mantenimiento' : ''">
+                        <span class="action-icon">📋</span><span>Estado de Jobs</span>
+                        <span *ngIf="isModuleDisabled('jobs')" style="font-size: 9px; background: rgba(245,158,11,0.25); color: #fbbf24; border: 1px solid rgba(245,158,11,0.5); padding: 1px 4px; border-radius: 4px; margin-left: auto;">⚙️ En ajuste</span>
+                    </button>
+                    <button class="action-btn" [class.active]="activeTab === 'alwayson'" [style.opacity]="!isAdmin && isModuleDisabled('alwayson') ? '0.45' : '1'" [style.cursor]="!isAdmin && isModuleDisabled('alwayson') ? 'not-allowed' : 'pointer'" (click)="selectTab('alwayson')" [title]="(!isAdmin && isModuleDisabled('alwayson')) ? '⚠️ Módulo en mantenimiento' : ''">
+                        <span class="action-icon">🔗</span><span>Nodos AlwaysOn</span>
+                        <span *ngIf="isModuleDisabled('alwayson')" style="font-size: 9px; background: rgba(245,158,11,0.25); color: #fbbf24; border: 1px solid rgba(245,158,11,0.5); padding: 1px 4px; border-radius: 4px; margin-left: auto;">⚙️ En ajuste</span>
+                    </button>
+                    <button class="action-btn" [class.active]="activeTab === 'performance'" [style.opacity]="!isAdmin && isModuleDisabled('performance') ? '0.45' : '1'" [style.cursor]="!isAdmin && isModuleDisabled('performance') ? 'not-allowed' : 'pointer'" (click)="selectTab('performance')" [title]="(!isAdmin && isModuleDisabled('performance')) ? '⚠️ Módulo en mantenimiento' : ''">
+                        <span class="action-icon">📈</span><span>Performance General</span>
+                        <span *ngIf="isModuleDisabled('performance')" style="font-size: 9px; background: rgba(245,158,11,0.25); color: #fbbf24; border: 1px solid rgba(245,158,11,0.5); padding: 1px 4px; border-radius: 4px; margin-left: auto;">⚙️ En ajuste</span>
+                    </button>
+                    <button class="action-btn" [class.active]="activeTab === 'datalog'" [style.opacity]="!isAdmin && isModuleDisabled('datalog') ? '0.45' : '1'" [style.cursor]="!isAdmin && isModuleDisabled('datalog') ? 'not-allowed' : 'pointer'" (click)="selectTab('datalog')" [title]="(!isAdmin && isModuleDisabled('datalog')) ? '⚠️ Módulo en mantenimiento' : ''">
+                        <span class="action-icon">🔍</span><span>Validar Data y Log</span>
+                        <span *ngIf="isModuleDisabled('datalog')" style="font-size: 9px; background: rgba(245,158,11,0.25); color: #fbbf24; border: 1px solid rgba(245,158,11,0.5); padding: 1px 4px; border-radius: 4px; margin-left: auto;">⚙️ En ajuste</span>
+                    </button>
+                    <button class="action-btn" [style.opacity]="!isAdmin && isModuleDisabled('cancelar') ? '0.45' : '1'" [style.cursor]="!isAdmin && isModuleDisabled('cancelar') ? 'not-allowed' : 'pointer'" (click)="runAction('cancelar')" [title]="(!isAdmin && isModuleDisabled('cancelar')) ? '⚠️ Módulo en mantenimiento' : ''">
+                        <span class="action-icon">❌</span><span>Forzar Cancelación</span>
+                        <span *ngIf="isModuleDisabled('cancelar')" style="font-size: 9px; background: rgba(245,158,11,0.25); color: #fbbf24; border: 1px solid rgba(245,158,11,0.5); padding: 1px 4px; border-radius: 4px; margin-left: auto;">⚙️ En ajuste</span>
                     </button>
                 </div>
             </div>
             
             <div class="sidebar-section">
-                <p class="sidebar-label">Configuración</p>
+                <p class="sidebar-label">Configuración & Auditoría</p>
                 <div class="sidebar-actions">
+                    <button class="action-btn" (click)="openAuditModal()">
+                        <span class="action-icon">📋</span><span>Registro de Auditoría</span>
+                    </button>
                     <button class="action-btn" (click)="openUserModal()">
                         <span class="action-icon">👥</span><span>Gestión de Usuarios</span>
                     </button>
@@ -110,156 +130,336 @@
     <!-- Main Content Area -->
     <main class="chat-main">
         <!-- Top Bar -->
-        <header class="chat-header-main" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; background: var(--bg-color); border-bottom: 1px solid var(--border-color);">
-            <div class="header-logo">
-                <span class="logo-main" style="font-weight: 600; color: white;">DataCheck Workspace</span>
-                <span class="logo-sub" style="font-size: 12px; color: var(--text-muted); margin-left: 10px;">Enterprise Dashboard</span>
-            </div>
-
-            <div style="display: flex; align-items: center; gap: 15px;">
-                <button (click)="exportToPDF()" style="background: rgba(0,230,118,0.1); border: 1px solid rgba(0,230,118,0.2); color: var(--green); padding: 6px 12px; border-radius: 6px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(0,230,118,0.2)'" onmouseout="this.style.background='rgba(0,230,118,0.1)'">📄 Exportar PDF</button>
-                <button style="background: transparent; border: none; color: var(--text-secondary); cursor: pointer; transition: color 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='var(--text-secondary)'">Feedback</button>
-                <button style="background: transparent; border: none; color: var(--text-secondary); cursor: pointer; transition: color 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='var(--text-secondary)'">Docs</button>
-            </div>
-        </header>
-
-        <!-- Dynamic Content Area -->
-        <div class="chat-messages" style="flex: 1; padding: 30px; overflow-y: auto;">
-            <div class="welcome-card metric-card-animated" *ngIf="!actionResult && !isLoadingAction" [@fadeSlideUp] style="max-width: 600px; margin: 40px auto; text-align: center; background: var(--card-bg); padding: 40px; border-radius: 16px; border: 1px solid var(--border-color);">
-                <div class="welcome-icon" style="font-size: 40px; margin-bottom: 20px;">⚡</div>
-                <h3 style="color: white; margin-bottom: 15px; font-size: 20px;">Inteligencia de Base de Datos</h3>
-                <p style="color: var(--text-muted); line-height: 1.6; margin-bottom: 30px;">Selecciona una instancia SQL Server en el panel izquierdo y utiliza las acciones rápidas, o ingresa un comando en la consola flotante para análisis en tiempo real.</p>
-                <div class="quick-actions" style="display: flex; gap: 10px; justify-content: center;">
-                    <button class="quick-btn" (click)="runAction('status')" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: white; padding: 8px 16px; border-radius: 20px; cursor: pointer;">Estado General</button>
-                    <button class="quick-btn" (click)="runAction('cpu')" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: white; padding: 8px 16px; border-radius: 20px; cursor: pointer;">Diagnóstico CPU</button>
-                    <button class="quick-btn" (click)="runAction('discos')" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: white; padding: 8px 16px; border-radius: 20px; cursor: pointer;">Métricas Disco</button>
+        <header class="chat-header-main" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 25px; background: var(--bg-secondary); border-bottom: 1px solid var(--border-subtle);">
+            <div class="header-logo" style="display: flex; align-items: center; gap: 12px;">
+                <div class="header-icon-badge" style="background: rgba(0, 229, 255, 0.1); border: 1px solid rgba(0, 229, 255, 0.3); color: var(--cyan); border-radius: 8px; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-size: 16px;">
+                    ⚡
+                </div>
+                <div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="logo-main" style="font-weight: 600; color: white; font-size: 15px;">Performance Monitor</span>
+                        <span style="font-size: 10px; background: rgba(0, 230, 118, 0.15); color: var(--green); border: 1px solid rgba(0, 230, 118, 0.3); padding: 1px 7px; border-radius: 12px; font-weight: 500;">Darling Architecture</span>
+                    </div>
+                    <span class="logo-sub" style="font-size: 11px; color: var(--text-secondary);">Enterprise Multi-Engine Telemetry (SQL Server & Postgres)</span>
                 </div>
             </div>
 
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <button (click)="loadTelemetryOverview()" title="Refrescar Telemetría" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: var(--text-primary); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 6px;">
+                    🔄 <span>Refrescar</span>
+                </button>
+                <button (click)="exportToPDF()" style="background: rgba(0,230,118,0.1); border: 1px solid rgba(0,230,118,0.25); color: var(--green); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 6px;">
+                    📄 <span>Exportar PDF</span>
+                </button>
+                <button *ngIf="isAdmin" (click)="openMaintenanceConfigModal()" [style.background]="isServerMaintenanceActive ? 'rgba(245, 158, 11, 0.25)' : 'rgba(255,255,255,0.05)'" [style.color]="isServerMaintenanceActive ? '#f59e0b' : 'var(--text-secondary)'" style="border: 1px solid var(--border-subtle); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 6px;">
+                    🛠️ <span>{{ isServerMaintenanceActive ? (isGlobalLock() ? 'Mantenimiento Global (' + maintenanceElapsedFormatted + ')' : 'Mantenimiento Modular (' + maintenanceElapsedFormatted + ')') : 'Mantenimiento DBA' }}</span>
+                </button>
+                <button (click)="openAboutModal()" style="background: rgba(0, 229, 255, 0.1); border: 1px solid rgba(0, 229, 255, 0.25); color: var(--cyan); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 6px;">
+                    ℹ️ <span>Acerca de</span>
+                </button>
+                <button (click)="openFeedbackModal()" style="background: transparent; border: none; color: var(--text-secondary); cursor: pointer; font-size: 12px;">Feedback</button>
+                <button (click)="openDocs()" style="background: transparent; border: none; color: var(--text-secondary); cursor: pointer; font-size: 12px;">Docs</button>
+            </div>
+        </header>
+
+        <!-- Partial / Modular Maintenance Warning Banner (When not in full lockdown) -->
+        <div *ngIf="isServerMaintenanceActive && !isGlobalLock()" style="background: linear-gradient(90deg, rgba(245, 158, 11, 0.16) 0%, rgba(20, 24, 33, 0.95) 100%); border-bottom: 1px solid rgba(245, 158, 11, 0.4); padding: 8px 24px; display: flex; justify-content: space-between; align-items: center; z-index: 99; backdrop-filter: blur(8px);">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span style="font-size: 18px;">⚠️</span>
+                <div>
+                    <div style="font-size: 12.5px; font-weight: 600; color: #fbbf24; display: flex; align-items: center; gap: 8px;">
+                        <span>MANTENIMIENTO MODULAR ACTIVO</span>
+                        <span style="font-size: 11px; background: rgba(245, 158, 11, 0.25); border: 1px solid rgba(245, 158, 11, 0.5); padding: 1px 8px; border-radius: 10px; color: #fef3c7;">
+                            {{ disabledModules.length }} funciones deshabilitadas
+                        </span>
+                    </div>
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
+                        Los botones marcados con <strong style="color: #fbbf24;">⚙️ En ajuste</strong> están temporalmente inactivos. El resto del sistema y las bases de datos operan con normalidad.
+                    </div>
+                </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.5); border: 1px solid rgba(245, 158, 11, 0.35); padding: 4px 12px; border-radius: 6px;">
+                    <span style="font-size: 11.5px; color: #f59e0b;">⏱️ Tiempo en Mantenimiento:</span>
+                    <span style="font-family: monospace; font-size: 13.5px; font-weight: 700; color: #fbbf24; letter-spacing: 1px;">{{ maintenanceElapsedFormatted }}</span>
+                </div>
+                <button *ngIf="isAdmin" (click)="openMaintenanceConfigModal()" style="background: rgba(245, 158, 11, 0.25); border: 1px solid rgba(245, 158, 11, 0.6); color: #fbbf24; padding: 4px 12px; border-radius: 6px; font-size: 11.5px; cursor: pointer; font-weight: 500;">
+                    ⚙️ Gestionar
+                </button>
+            </div>
+        </div>
+
+        <!-- Darling Web Style Top Header KPIs Bar -->
+        <div class="telemetry-kpi-strip" *ngIf="telemetryData?.kpis">
+            <div class="kpi-card">
+                <div class="kpi-label">Instancia & Motor</div>
+                <div class="kpi-value text-cyan">
+                    <span class="status-pulse-dot"></span>
+                    {{ telemetryData.kpis.engine }}
+                </div>
+                <div class="kpi-sub">{{ telemetryData.kpis.status }}</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-label">Consumo CPU</div>
+                <div class="kpi-value" [ngClass]="{'text-cyan': telemetryData.kpis.cpu_percent < 70, 'text-red': telemetryData.kpis.cpu_percent >= 70}">
+                    {{ telemetryData.kpis.cpu_percent }}%
+                </div>
+                <div class="kpi-sub">Carga Proceso SQL</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-label">Conexiones & Hilos</div>
+                <div class="kpi-value text-accent">{{ telemetryData.kpis.threads_summary }}</div>
+                <div class="kpi-sub">Sesiones Activas / Pool</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-label">Memoria Buffer</div>
+                <div class="kpi-value text-accent">{{ telemetryData.kpis.memory_summary }}</div>
+                <div class="kpi-sub">Uso en Servidor</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-label">Bloqueos Activos</div>
+                <div class="kpi-value" [ngClass]="{'text-green': telemetryData.kpis.active_blocks === 0, 'text-red': telemetryData.kpis.active_blocks > 0}">
+                    {{ telemetryData.kpis.active_blocks }}
+                </div>
+                <div class="kpi-sub">Contención Tiempo Real</div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-label">Deadlocks (24h)</div>
+                <div class="kpi-value" [ngClass]="{'text-green': telemetryData.kpis.deadlocks_24h === 0, 'text-red': telemetryData.kpis.deadlocks_24h > 0}">
+                    {{ telemetryData.kpis.deadlocks_24h }}
+                </div>
+                <div class="kpi-sub">{{ telemetryData.kpis.collectors_status }}</div>
+            </div>
+        </div>
+
+        <!-- Dynamic Content Area -->
+        <div class="chat-messages" style="flex: 1; padding: 20px 25px; overflow-y: auto;">
             <!-- Loading Indicator -->
-            <div *ngIf="isLoadingAction" [@popIn] style="text-align: center; margin-top: 80px;">
-                <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 15px; letter-spacing: 0.5px; text-transform: uppercase;">Ejecutando telemetría SQL...</p>
-                <div class="progress-container" style="margin: 0 auto; width: 200px; height: 2px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; position: relative;">
+            <div *ngIf="isLoadingAction || (isTelemetryLoading && activeTab === 'overview')" [@popIn] style="text-align: center; margin: 40px auto;">
+                <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 15px; letter-spacing: 0.5px; text-transform: uppercase;">
+                    {{ isTelemetryLoading ? 'Recolectando Telemetría 24h...' : 'Ejecutando diagnóstico SQL...' }}
+                </p>
+                <div class="progress-container" style="margin: 0 auto; width: 220px; height: 3px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; position: relative;">
                     <div class="progress-fill" style="position: absolute; top: 0; left: 0; width: 50%; height: 100%; background: var(--cyan); animation: slideRight 1.5s infinite ease-in-out;"></div>
                 </div>
             </div>
 
             <!-- Error Result -->
-            <div class="error-msg friendly-msg-card msg-error" *ngIf="actionResult?.error" [@popIn] style="margin-top: 20px; background: rgba(255, 60, 60, 0.1); border: 1px solid rgba(255, 60, 60, 0.2); padding: 20px; border-radius: 12px; display: flex; gap: 15px; align-items: flex-start;">
+            <div class="error-msg friendly-msg-card msg-error" *ngIf="actionResult?.error" [@popIn] style="margin-top: 15px; background: rgba(255, 60, 60, 0.1); border: 1px solid rgba(255, 60, 60, 0.2); padding: 20px; border-radius: 12px; display: flex; gap: 15px; align-items: flex-start;">
                 <div class="icon-wrapper" style="font-size: 24px;">
                     <span>⚠️</span>
                 </div>
                 <div class="msg-content">
-                    <h3 style="margin: 0 0 5px 0; color: #ff5252; font-size: 16px;">Error de Conexión</h3>
+                    <h3 style="margin: 0 0 5px 0; color: #ff5252; font-size: 16px;">Error de Conexión o Diagnóstico</h3>
                     <p style="margin: 0; color: #ffbaba; font-size: 13px;">{{ actionResult.error }}</p>
                 </div>
             </div>
 
-            <!-- Data Result -->
-            <div *ngIf="actionResult && !actionResult.error" [@popIn] style="margin-top: 20px; background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border-color); overflow: hidden;">
+            <!-- TAB 1: OVERVIEW 2x2 TIME-SERIES TELEMETRY GRID -->
+            <div *ngIf="activeTab === 'overview' && !isLoadingAction" [@fadeSlideUp]>
+                <!-- 2x2 Telemetry Grid (Darling Web / PerformanceMonitor style) -->
+                <div class="telemetry-grid">
+                    <!-- Panel 1: CPU Utilization (24h) -->
+                    <div class="telemetry-chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title">
+                                <span class="chart-dot cyan-dot"></span>
+                                <span>Consumo de CPU (Últimas 24 Horas)</span>
+                            </div>
+                            <span class="chart-badge">Línea de Base 24h</span>
+                        </div>
+                        <div class="chart-canvas-wrapper">
+                            <canvas id="telemetryCpuCanvas"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Panel 2: Wait Stats Distribution (Top Wait Types) -->
+                    <div class="telemetry-chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title">
+                                <span class="chart-dot amber-dot"></span>
+                                <span>Principales Tipos de Espera (Top Wait Stats)</span>
+                            </div>
+                            <span class="chart-badge badge-amber">Filtro Benigno Darling</span>
+                        </div>
+                        <div class="chart-canvas-wrapper">
+                            <canvas id="telemetryWaitsCanvas"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Panel 3: Blocking & Deadlocks Activity (24h) -->
+                    <div class="telemetry-chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title">
+                                <span class="chart-dot red-dot"></span>
+                                <span>Bloqueos y Deadlocks en el Tiempo</span>
+                            </div>
+                            <span class="chart-badge badge-red">Contención de Recursos</span>
+                        </div>
+                        <div class="chart-canvas-wrapper">
+                            <canvas id="telemetryBlockingCanvas"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Panel 4: Transactions & Batch Requests / Throughput (24h) -->
+                    <div class="telemetry-chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title">
+                                <span class="chart-dot green-dot"></span>
+                                <span>Batch Requests & Transacciones / seg</span>
+                            </div>
+                            <span class="chart-badge badge-green">Throughput Activo</span>
+                        </div>
+                        <div class="chart-canvas-wrapper">
+                            <canvas id="telemetryThroughputCanvas"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live Health Advisory Bar -->
+                <div class="telemetry-advisory-bar" style="margin-top: 20px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 18px 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <span style="font-size: 22px;">💡</span>
+                        <div>
+                            <div style="color: white; font-size: 13px; font-weight: 600;">Diagnóstico Automático Proactivo</div>
+                            <div style="color: var(--text-secondary); font-size: 12px;">
+                                Sistema en estado óptimo. Utiliza las pestañas superiores para profundizar en estadísticas de espera o bloat de índices.
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button (click)="selectTab('esperas')" class="quick-btn-sm" style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); color: #f59e0b; padding: 6px 14px; border-radius: 6px; font-size: 12px; cursor: pointer;">Ver Esperas Detalladas</button>
+                        <button (click)="selectTab('bloqueos')" class="quick-btn-sm" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; padding: 6px 14px; border-radius: 6px; font-size: 12px; cursor: pointer;">Ver Bloqueos</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- OTHER TABS: SPECIFIC DATA VIEW -->
+            <div *ngIf="activeTab !== 'overview' && actionResult && !actionResult.error" [@popIn] style="margin-top: 15px; background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border-color); overflow: hidden;">
                 <div style="padding: 15px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.2);">
-                    <h3 style="margin: 0; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; color: white;">
-                        <span [innerHTML]="actionResult.title"></span>
-                    </h3>
-                    <span style="font-size: 10px; color: var(--green); background: rgba(0,230,118,0.1); padding: 3px 8px; border-radius: 10px; font-family: monospace;">200 OK</span>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <button (click)="selectTab('overview')" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: var(--text-secondary); padding: 4px 10px; border-radius: 6px; font-size: 12px; cursor: pointer;" title="Volver al Resumen">
+                            ⬅ Volver
+                        </button>
+                        <h3 style="margin: 0; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; color: white;">
+                            <span [innerHTML]="getActionTitle()"></span>
+                        </h3>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 10px; color: var(--green); background: rgba(0,230,118,0.1); padding: 3px 8px; border-radius: 10px; font-family: monospace;">200 OK</span>
+                    </div>
                 </div>
 
                 <div style="padding: 20px;">
-                    <ng-container *ngIf="actionResult.data.type === 'disk_monitor'; then diskCards"></ng-container>
-                    <ng-container *ngIf="actionResult.data.type === 'instance_monitor'; then instanceStatus"></ng-container>
-                                        <ng-container *ngIf="['table', 'tempdb_monitor', 'alwayson_monitor', 'job_monitor'].includes(actionResult.data.type); then dataTable"></ng-container>
-                    <ng-container *ngIf="['success', 'error', 'info'].includes(actionResult.data.type); then messageBox"></ng-container>
-                    <ng-container *ngIf="!['table', 'tempdb_monitor', 'alwayson_monitor', 'job_monitor', 'disk_monitor', 'instance_monitor', 'success', 'error', 'info'].includes(actionResult.data.type); then rawJsonBox"></ng-container>
-
-                    <ng-template #messageBox>
-                        <div style="padding: 20px; background: rgba(0,0,0,0.3); border-radius: 12px; border: 1px solid var(--border-subtle); color: white; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">
-                            <span *ngIf="actionResult.data.type === 'success'" style="margin-right: 10px; font-size: 18px;">✅</span>
-                            <span *ngIf="actionResult.data.type === 'error'" style="margin-right: 10px; font-size: 18px;">❌</span>
-                            <span [innerHTML]="formatMarkdown(actionResult.data.message || actionResult.data.detail)"></span>
-                        </div>
-                    </ng-template>
-
-                    <ng-template #rawJsonBox>
-                        <pre style="background: #000000; padding: 20px; border-radius: 8px; border: 1px solid var(--border-subtle); color: var(--text-secondary); font-family: var(--font-mono); font-size: 12px; overflow-x: auto; white-space: pre-wrap; margin: 0;">{{ actionResult.data | json }}</pre>
-                    </ng-template>
-                    
-                    <ng-template #instanceStatus>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px;">
-                            <div class="metric-card-animated" style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 12px; border: 1px solid var(--border-subtle); text-align: center;">
-                                <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Estado Servidor</div>
-                                <div style="font-size: 24px; font-weight: 600; color: var(--green); margin-top: 10px;">{{ actionResult.data.data.status }}</div>
-                            </div>
-                            <div class="metric-card-animated" style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 12px; border: 1px solid var(--border-subtle); text-align: center;">
-                                <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Uptime / Sesiones</div>
-                                <div style="font-size: 20px; font-weight: 600; color: white; margin-top: 10px;">{{ actionResult.data.data.uptime }}</div>
-                            </div>
-                            <div class="metric-card-animated" style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 12px; border: 1px solid var(--border-subtle); text-align: center;">
-                                <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Consumo CPU</div>
-                                <div style="font-size: 24px; font-weight: 600; color: var(--cyan); margin-top: 10px;">{{ actionResult.data.data.cpu }}%</div>
-                            </div>
-                        </div>
-
-                        <!-- Gráfica Histórica de CPU (Estilo Darling Web / PerformanceMonitor) -->
-                        <div class="metric-card-animated" style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 12px; border: 1px solid var(--border-subtle);">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                                <span style="font-size: 13px; font-weight: 600; color: white;">📈 Consumo de CPU (Últimas 24 Horas)</span>
-                                <span style="font-size: 11px; color: var(--cyan); background: rgba(0,229,255,0.1); padding: 3px 8px; border-radius: 6px;">Telemetría Activa</span>
-                            </div>
-                            <div style="position: relative; height: 260px; width: 100%;">
-                                <canvas id="cpuChart"></canvas>
-                            </div>
-                        </div>
-                    </ng-template>
-
-                    <ng-template #diskCards>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px;">
-                            <div *ngFor="let disk of actionResult.data.data" class="metric-card-animated" style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 12px; border: 1px solid var(--border-subtle);">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                                    <span style="font-size: 18px; font-weight: 600; color: white;">Disco {{ disk.Drive }}</span>
-                                    <span style="font-size: 12px; padding: 4px 8px; border-radius: 10px;" [ngStyle]="{'background': disk.FreePct < 15 ? 'rgba(255,60,60,0.2)' : 'rgba(0,230,118,0.1)', 'color': disk.FreePct < 15 ? 'var(--red)' : 'var(--green)'}">
-                                        {{ disk.FreePct }}% Libre
-                                    </span>
-                                </div>
-                                <ng-container *ngIf="disk.UsedGB !== undefined; else pgDisk">
-                                    <div style="height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; margin-bottom: 10px; overflow: hidden;">
-                                        <div style="height: 100%; border-radius: 3px; transition: width 1s ease-out;" [style.width]="(disk.UsedGB / disk.TotalGB * 100) + '%'" [ngStyle]="{'background': disk.FreePct < 15 ? 'var(--red)' : 'var(--cyan)'}"></div>
-                                    </div>
-                                    <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted);">
-                                        <span>Usado: {{ disk.UsedGB }} GB</span>
-                                        <span>Total: {{ disk.TotalGB }} GB</span>
-                                    </div>
-                                </ng-container>
-
-                                <ng-template #pgDisk>
-                                    <div style="font-size: 28px; font-weight: 600; color: var(--cyan); margin-top: 5px;">{{ disk.TotalGB }}<span style="font-size: 16px; color: var(--text-muted);"> GB</span></div>
-                                    <div style="font-size: 12px; color: var(--text-muted);">Tamaño Físico</div>
-                                </ng-template>
-                            </div>
-                        </div>
-                    </ng-template>
-
-                    <ng-template #dataTable>
-                        <div *ngIf="actionResult.data.data && isArray(actionResult.data.data) && actionResult.data.data.length > 0; else rawJson" style="overflow-x: auto;">
-                            <table style="width: 100%; border-collapse: collapse; color: var(--text-secondary); font-size: 13px; text-align: left; background: rgba(0,0,0,0.2); border-radius: 8px;">
-                                <thead>
-                                    <tr style="border-bottom: 1px solid var(--border-subtle); color: var(--text-primary); background: rgba(0,0,0,0.5);">
-                                        <th *ngFor="let key of getKeys(actionResult.data.data[0])" style="padding: 12px; font-weight: 500; text-transform: uppercase; font-size: 11px; white-space: nowrap;">{{ key }}</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr *ngFor="let row of actionResult.data.data" class="table-row-animated" style="border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
-                                        <td *ngFor="let key of getKeys(row)" style="padding: 12px; white-space: nowrap;">{{ row[key] }}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </ng-template>
-
-                    <ng-template #rawJson>
-                        <pre style="background: #000000; padding: 20px; border-radius: 8px; border: 1px solid var(--border-subtle); color: var(--text-secondary); font-family: var(--font-mono); font-size: 12px; overflow-x: auto; white-space: pre-wrap; margin: 0;">{{ actionResult.data | json }}</pre>
-                    </ng-template>
+                    <ng-container *ngIf="getActionType() === 'disk_monitor'; then diskCards"></ng-container>
+                    <ng-container *ngIf="getActionType() === 'instance_monitor'; then instanceStatus"></ng-container>
+                    <ng-container *ngIf="['table', 'tempdb_monitor', 'alwayson_monitor', 'job_monitor'].includes(getActionType()); then dataTable"></ng-container>
+                    <ng-container *ngIf="['success', 'error', 'info'].includes(getActionType()); then messageBox"></ng-container>
+                    <ng-container *ngIf="!['table', 'tempdb_monitor', 'alwayson_monitor', 'job_monitor', 'disk_monitor', 'instance_monitor', 'success', 'error', 'info'].includes(getActionType()); then rawJsonBox"></ng-container>
                 </div>
             </div>
+
+            <!-- Templates for data cards and tables -->
+            <ng-template #messageBox>
+                <div style="padding: 20px; background: rgba(0,0,0,0.3); border-radius: 12px; border: 1px solid var(--border-subtle); color: white; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">
+                    <span *ngIf="getActionType() === 'success'" style="margin-right: 10px; font-size: 18px;">✅</span>
+                    <span *ngIf="getActionType() === 'error'" style="margin-right: 10px; font-size: 18px;">❌</span>
+                    <span *ngIf="getActionType() === 'info'" style="margin-right: 10px; font-size: 18px;">ℹ️</span>
+                    <span [innerHTML]="formatMarkdown(getActionMessage())"></span>
+                </div>
+            </ng-template>
+
+            <ng-template #rawJsonBox>
+                <pre style="background: #000000; padding: 20px; border-radius: 8px; border: 1px solid var(--border-subtle); color: var(--text-secondary); font-family: var(--font-mono); font-size: 12px; overflow-x: auto; white-space: pre-wrap; margin: 0;">{{ getActionData() | json }}</pre>
+            </ng-template>
+            
+            <ng-template #instanceStatus>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px;">
+                    <div class="metric-card-animated" style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 12px; border: 1px solid var(--border-subtle); text-align: center;">
+                        <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Estado Servidor</div>
+                        <div style="font-size: 24px; font-weight: 600; color: var(--green); margin-top: 10px;">{{ getActionData()?.status || 'Online' }}</div>
+                    </div>
+                    <div class="metric-card-animated" style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 12px; border: 1px solid var(--border-subtle); text-align: center;">
+                        <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Uptime / Sesiones</div>
+                        <div style="font-size: 20px; font-weight: 600; color: white; margin-top: 10px;">{{ getActionData()?.uptime || 'N/A' }}</div>
+                    </div>
+                    <div class="metric-card-animated" style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 12px; border: 1px solid var(--border-subtle); text-align: center;">
+                        <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Consumo CPU</div>
+                        <div style="font-size: 24px; font-weight: 600; color: var(--cyan); margin-top: 10px;">{{ getActionData()?.cpu ?? 0 }}%</div>
+                    </div>
+                </div>
+
+                <!-- Gráfica Histórica de CPU de instancia -->
+                <div class="metric-card-animated" style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 12px; border: 1px solid var(--border-subtle);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <span style="font-size: 13px; font-weight: 600; color: white;">📈 Consumo de CPU (Últimas 24 Horas)</span>
+                        <span style="font-size: 11px; color: var(--cyan); background: rgba(0,229,255,0.1); padding: 3px 8px; border-radius: 6px;">Telemetría Activa</span>
+                    </div>
+                    <div style="position: relative; height: 260px; width: 100%;">
+                        <canvas id="cpuChart"></canvas>
+                    </div>
+                </div>
+            </ng-template>
+
+            <ng-template #diskCards>
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px;">
+                    <div *ngFor="let disk of getActionData()" class="metric-card-animated" style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 12px; border: 1px solid var(--border-subtle);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <span style="font-size: 18px; font-weight: 600; color: white;">Disco {{ disk.Drive }}</span>
+                            <span style="font-size: 12px; padding: 4px 8px; border-radius: 10px;" [ngStyle]="{'background': disk.FreePct < 15 ? 'rgba(255,60,60,0.2)' : 'rgba(0,230,118,0.1)', 'color': disk.FreePct < 15 ? 'var(--red)' : 'var(--green)'}">
+                                {{ disk.FreePct }}% Libre
+                            </span>
+                        </div>
+                        <ng-container *ngIf="disk.UsedGB !== undefined; else pgDisk">
+                            <div style="height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; margin-bottom: 10px; overflow: hidden;">
+                                <div style="height: 100%; border-radius: 3px; transition: width 1s ease-out;" [style.width]="(disk.UsedGB / disk.TotalGB * 100) + '%'" [ngStyle]="{'background': disk.FreePct < 15 ? 'var(--red)' : 'var(--cyan)'}"></div>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted);">
+                                <span>Usado: {{ disk.UsedGB }} GB</span>
+                                <span>Total: {{ disk.TotalGB }} GB</span>
+                            </div>
+                        </ng-container>
+
+                        <ng-template #pgDisk>
+                            <div style="font-size: 28px; font-weight: 600; color: var(--cyan); margin-top: 5px;">{{ disk.TotalGB }}<span style="font-size: 16px; color: var(--text-muted);"> GB</span></div>
+                            <div style="font-size: 12px; color: var(--text-muted);">Tamaño Físico</div>
+                        </ng-template>
+                    </div>
+                </div>
+            </ng-template>
+
+            <ng-template #dataTable>
+                <div *ngIf="getActionData() && isArray(getActionData()) && getActionData().length > 0; else noTableData" style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; color: var(--text-secondary); font-size: 13px; text-align: left; background: rgba(0,0,0,0.2); border-radius: 8px;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--border-subtle); color: var(--text-primary); background: rgba(0,0,0,0.5);">
+                                <th *ngFor="let key of getKeys(getActionData()[0])" style="padding: 12px; font-weight: 500; text-transform: uppercase; font-size: 11px; white-space: nowrap;">{{ key }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr *ngFor="let row of getActionData()" class="table-row-animated" style="border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
+                                <td *ngFor="let key of getKeys(row)" style="padding: 12px; white-space: nowrap;">{{ row[key] }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <ng-template #noTableData>
+                    <div style="text-align: center; padding: 40px 20px; background: rgba(0,0,0,0.2); border-radius: 12px; border: 1px dashed var(--border-subtle); color: var(--text-muted);">
+                        <span style="font-size: 32px; display: block; margin-bottom: 10px;">📋</span>
+                        <p style="margin: 0; font-size: 14px; color: white; font-weight: 500;">No se encontraron registros activos</p>
+                        <p style="margin: 5px 0 0 0; font-size: 12px; color: var(--text-secondary);">El motor de base de datos no reporta datos para este criterio en este momento.</p>
+                    </div>
+                </ng-template>
+            </ng-template>
+
+            <ng-template #rawJson>
+                <pre style="background: #000000; padding: 20px; border-radius: 8px; border: 1px solid var(--border-subtle); color: var(--text-secondary); font-family: var(--font-mono); font-size: 12px; overflow-x: auto; white-space: pre-wrap; margin: 0;">{{ actionResult.data | json }}</pre>
+            </ng-template>
         </div>
     </main>
 
@@ -359,40 +559,671 @@
         </div>
     </div>
     <!-- User Management Modal -->
-    <div *ngIf="isUserModalOpen" [@popIn] class="modal-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 1000;">
-        <div class="modal-content" style="background: var(--bg-card); width: 500px; padding: 30px; border-radius: 16px; border: 1px solid var(--border-subtle); box-shadow: 0 25px 50px rgba(0,0,0,0.8);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-                <h3 style="font-size: 18px; font-weight: 500;">Gestión de Usuarios</h3>
-                <button (click)="closeUserModal()" style="background: transparent; border: none; color: var(--text-secondary); font-size: 20px; cursor: pointer;">✖️</button>
+    <div *ngIf="isUserModalOpen" [@popIn] class="modal-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 1000;">
+        <div class="modal-content" style="background: var(--bg-card); width: 680px; max-width: 95vw; padding: 28px; border-radius: 16px; border: 1px solid var(--border-subtle); box-shadow: 0 25px 50px rgba(0,0,0,0.8); max-height: 90vh; display: flex; flex-direction: column;">
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 22px;">👥</span>
+                    <div>
+                        <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: white;">Gestión y Directorio de Usuarios</h3>
+                        <p style="margin: 2px 0 0 0; color: var(--text-muted); font-size: 12px;">Administración de credenciales, roles y despacho de invitaciones por correo.</p>
+                    </div>
+                </div>
+                <button (click)="closeUserModal()" style="background: transparent; border: none; color: var(--text-secondary); font-size: 18px; cursor: pointer;">✕</button>
+            </div>
+
+            <!-- Tab Switcher -->
+            <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px;">
+                <button (click)="userManagementTab = 'list'; loadUsers()" 
+                        [style.background]="userManagementTab === 'list' ? 'rgba(0, 229, 255, 0.15)' : 'rgba(255,255,255,0.03)'"
+                        [style.color]="userManagementTab === 'list' ? 'var(--cyan)' : 'var(--text-secondary)'"
+                        [style.border-color]="userManagementTab === 'list' ? 'var(--cyan)' : 'var(--border-subtle)'"
+                        style="border: 1px solid; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer;">
+                    📋 Directorio de Usuarios ({{ usersList.length }})
+                </button>
+                <button (click)="userManagementTab = 'create'" 
+                        [style.background]="userManagementTab === 'create' ? 'rgba(0, 229, 255, 0.15)' : 'rgba(255,255,255,0.03)'"
+                        [style.color]="userManagementTab === 'create' ? 'var(--cyan)' : 'var(--text-secondary)'"
+                        [style.border-color]="userManagementTab === 'create' ? 'var(--cyan)' : 'var(--border-subtle)'"
+                        style="border: 1px solid; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer;">
+                    ➕ Invitar / Crear Nuevo Usuario
+                </button>
+            </div>
+
+            <!-- TAB 1: USERS DIRECTORY LIST -->
+            <div *ngIf="userManagementTab === 'list'" style="flex: 1; overflow-y: auto;">
+                <div *ngIf="isLoadingUsers" style="text-align: center; padding: 40px; color: var(--text-secondary); font-size: 13px;">
+                    Cargando usuarios...
+                </div>
+
+                <div *ngIf="!isLoadingUsers && usersList.length === 0" style="text-align: center; padding: 40px; color: var(--text-muted); font-size: 13px;">
+                    No se encontraron usuarios registrados.
+                </div>
+
+                <table *ngIf="!isLoadingUsers && usersList.length > 0" style="width: 100%; border-collapse: collapse; font-size: 12.5px; text-align: left; color: var(--text-secondary);">
+                    <thead>
+                        <tr style="background: rgba(0,0,0,0.4); border-bottom: 1px solid var(--border-subtle); color: var(--text-primary);">
+                            <th style="padding: 10px 12px; font-weight: 600;">Usuario</th>
+                            <th style="padding: 10px 12px; font-weight: 600;">Nombre Completo</th>
+                            <th style="padding: 10px 12px; font-weight: 600;">Correo Electrónico</th>
+                            <th style="padding: 10px 12px; font-weight: 600;">Rol</th>
+                            <th style="padding: 10px 12px; font-weight: 600; text-align: right;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr *ngFor="let u of usersList" style="border-bottom: 1px solid rgba(255,255,255,0.04);">
+                            <td style="padding: 10px 12px; font-weight: 600; color: white;">
+                                {{ u.username }}
+                            </td>
+                            <td style="padding: 10px 12px; color: var(--text-primary);">
+                                {{ u.full_name || '-' }}
+                            </td>
+                            <td style="padding: 10px 12px; font-family: var(--font-mono); font-size: 11.5px; color: var(--text-muted);">
+                                {{ u.email || 'Sin correo' }}
+                            </td>
+                            <td style="padding: 10px 12px;">
+                                <span [style.background]="u.role === 'Administrador' ? 'rgba(0, 229, 255, 0.15)' : 'rgba(255,255,255,0.08)'"
+                                      [style.color]="u.role === 'Administrador' ? 'var(--cyan)' : 'var(--text-secondary)'"
+                                      style="padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600;">
+                                    {{ u.role }}
+                                </span>
+                            </td>
+                            <td style="padding: 10px 12px; text-align: right; white-space: nowrap;">
+                                <button (click)="openEditUserModal(u)" 
+                                        title="Editar información del usuario"
+                                        style="background: rgba(0, 229, 255, 0.15); border: 1px solid rgba(0, 229, 255, 0.3); color: var(--cyan); padding: 4px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; margin-right: 6px;">
+                                    ✏️ Editar
+                                </button>
+                                <button (click)="openChangePasswordModal(u)" 
+                                        title="Cambiar contraseña de este usuario"
+                                        style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); color: #f59e0b; padding: 4px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; margin-right: 6px;">
+                                    🔑 Contraseña
+                                </button>
+                                <button *ngIf="u.username !== currentUser"
+                                        (click)="confirmDeleteUser(u)" 
+                                        title="Eliminar usuario"
+                                        style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer;">
+                                    🗑️
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- TAB 2: CREATE USER & SEND INVITATION FORM -->
+            <div *ngIf="userManagementTab === 'create'" style="display: grid; gap: 14px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div>
+                        <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Nombre de Usuario *</label>
+                        <input type="text" [(ngModel)]="newUser.username" class="form-input-sm" style="margin-top: 5px; width: 100%; box-sizing: border-box;" placeholder="Ej: jperalta">
+                    </div>
+                    <div>
+                        <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Nombre Completo</label>
+                        <input type="text" [(ngModel)]="newUser.full_name" class="form-input-sm" style="margin-top: 5px; width: 100%; box-sizing: border-box;" placeholder="Ej: Juan Peralta">
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 12px;">
+                    <div>
+                        <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Correo Electrónico (Para Invitación) *</label>
+                        <input type="email" [(ngModel)]="newUser.email" class="form-input-sm" style="margin-top: 5px; width: 100%; box-sizing: border-box;" placeholder="usuario@arus.com.co">
+                        <span style="font-size: 11px; color: var(--text-muted); margin-top: 3px; display: block;">Se enviará invitación con credenciales a este correo.</span>
+                    </div>
+                    <div>
+                        <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Rol Asignado</label>
+                        <select [(ngModel)]="newUser.role" class="form-input-sm" style="margin-top: 5px; width: 100%; box-sizing: border-box;">
+                            <option>Administrador</option>
+                            <option>DBA Principal</option>
+                            <option>Monitor</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Contraseña de Acceso *</label>
+                        <button (click)="generateRandomPassword()" style="background: rgba(0, 229, 255, 0.1); border: 1px solid rgba(0, 229, 255, 0.25); color: var(--cyan); padding: 2px 8px; border-radius: 4px; font-size: 11px; cursor: pointer;">
+                            🎲 Generar Aleatoria Segura
+                        </button>
+                    </div>
+                    <input type="text" [(ngModel)]="newUser.password" class="form-input-sm" style="margin-top: 5px; width: 100%; box-sizing: border-box; font-family: var(--font-mono);" placeholder="Ingresa contraseña o genera una segura">
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button (click)="userManagementTab = 'list'" style="flex: 1; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: var(--text-secondary); border-radius: 8px; cursor: pointer; font-size: 13px;">
+                        Volver a Directorio
+                    </button>
+                    <button (click)="submitUser()" [disabled]="isCreatingUser" class="send-btn" style="flex: 1.5; border-radius: 8px; color: black; font-weight: 600; font-size: 13px; padding: 10px;">
+                        {{ isCreatingUser ? 'Creando y Despachando Invitación...' : '🚀 Crear Usuario y Enviar Invitación' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contract Creation Modal -->
+    <div *ngIf="isContractModalOpen" [@popIn] class="modal-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 1000;">
+        <div class="modal-content" style="background: var(--bg-card); width: 460px; padding: 28px; border-radius: 16px; border: 1px solid var(--border-subtle); box-shadow: 0 25px 50px rgba(0,0,0,0.8);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="font-size: 17px; font-weight: 600; color: white; display: flex; align-items: center; gap: 8px;">
+                    🏢 <span>Crear Nuevo Contrato</span>
+                </h3>
+                <button (click)="closeContractModal()" style="background: transparent; border: none; color: var(--text-secondary); font-size: 18px; cursor: pointer;">✖️</button>
             </div>
             
-            <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 20px;">Esta funcionalidad está actualmente conectándose con la base de datos de PostgreSQL en la nueva arquitectura de Angular.</p>
+            <p style="color: var(--text-secondary); font-size: 12.5px; margin-bottom: 20px;">
+                Registra un contrato de cliente u organización para agrupar instancias de bases de datos.
+            </p>
             
             <div style="display: grid; gap: 15px;">
                 <div>
-                    <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Nuevo Usuario</label>
-                    <input type="text" [(ngModel)]="newUser.username" class="form-input-sm" style="margin-top: 5px; width: 100%; box-sizing: border-box;" placeholder="Nombre de usuario">
+                    <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 500;">Nombre del Contrato</label>
+                    <input type="text" [(ngModel)]="newContractName" (keyup.enter)="submitContract()" class="form-input-sm" style="margin-top: 6px; width: 100%; box-sizing: border-box;" placeholder="Ej: Banco Santander, Retail Colombia, etc.">
                 </div>
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button (click)="closeContractModal()" style="flex: 1; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: var(--text-secondary); border-radius: 8px; cursor: pointer; font-size: 13px;">
+                        Cancelar
+                    </button>
+                    <button (click)="submitContract()" [disabled]="isCreatingContract" class="send-btn" style="flex: 1; border-radius: 8px; color: black; font-weight: 600; font-size: 13px; padding: 10px;">
+                        {{ isCreatingContract ? 'Creando...' : 'Crear Contrato' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Instance Creation Modal (Multi-Engine) -->
+    <div *ngIf="isInstanceModalOpen" [@popIn] class="modal-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.65); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 1000;">
+        <div class="modal-content" style="background: var(--bg-card); width: 540px; padding: 28px; border-radius: 16px; border: 1px solid var(--border-subtle); box-shadow: 0 25px 50px rgba(0,0,0,0.8); max-height: 90vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
+                <h3 style="font-size: 17px; font-weight: 600; color: white; display: flex; align-items: center; gap: 8px;">
+                    🗄️ <span>Registrar Instancia de BD</span>
+                </h3>
+                <button (click)="closeInstanceModal()" style="background: transparent; border: none; color: var(--text-secondary); font-size: 18px; cursor: pointer;">✖️</button>
+            </div>
+            
+            <p style="color: var(--text-secondary); font-size: 12.5px; margin-bottom: 20px;">
+                Configura una nueva conexión multimotor. Las credenciales se almacenan con cifrado AES-128.
+            </p>
+            
+            <div style="display: grid; gap: 14px;">
                 <div>
-                    <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Rol</label>
-                    <select [(ngModel)]="newUser.role" class="form-input-sm" style="margin-top: 5px; width: 100%; box-sizing: border-box;">
-                        <option>Administrador</option>
-                        <option>DBA Principal</option>
-                        <option>Monitor (Solo Lectura)</option>
+                    <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Contrato Asociado</label>
+                    <select [(ngModel)]="newInstance.contractId" class="form-input-sm" style="margin-top: 5px; width: 100%; box-sizing: border-box;">
+                        <option *ngFor="let contract of contracts" [value]="contract.id">{{ contract.name }}</option>
                     </select>
                 </div>
-                <button (click)="submitUser()" [disabled]="isCreatingUser" class="send-btn" style="width: 100%; border-radius: 8px; margin-top: 10px; color: black; font-weight: 500; font-size: 13px;">
-                    {{ isCreatingUser ? 'Creando...' : 'Crear Credenciales' }}
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div>
+                        <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Motor de BD</label>
+                        <select [(ngModel)]="newInstance.engine" (change)="onEngineSelectChange()" class="form-input-sm" style="margin-top: 5px; width: 100%; box-sizing: border-box;">
+                            <option value="sqlserver">Microsoft SQL Server</option>
+                            <option value="postgres">PostgreSQL</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Nombre de Instancia</label>
+                        <input type="text" [(ngModel)]="newInstance.name" class="form-input-sm" style="margin-top: 5px; width: 100%; box-sizing: border-box;" placeholder="Ej: PROD-SQL-01">
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 12px;">
+                    <div>
+                        <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Servidor / Host / IP</label>
+                        <input type="text" [(ngModel)]="newInstance.host" class="form-input-sm" style="margin-top: 5px; width: 100%; box-sizing: border-box;" placeholder="localhost o IP">
+                    </div>
+                    <div>
+                        <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Puerto</label>
+                        <input type="number" [(ngModel)]="newInstance.port" class="form-input-sm" style="margin-top: 5px; width: 100%; box-sizing: border-box;">
+                    </div>
+                </div>
+
+                <div>
+                    <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Base de Datos Inicial</label>
+                    <input type="text" [(ngModel)]="newInstance.database" class="form-input-sm" style="margin-top: 5px; width: 100%; box-sizing: border-box;" placeholder="master o postgres o nombre BD">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div>
+                        <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Usuario</label>
+                        <input type="text" [(ngModel)]="newInstance.username" class="form-input-sm" style="margin-top: 5px; width: 100%; box-sizing: border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Contraseña</label>
+                        <input type="password" [(ngModel)]="newInstance.password" class="form-input-sm" style="margin-top: 5px; width: 100%; box-sizing: border-box;">
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                    <button (click)="closeInstanceModal()" style="flex: 1; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: var(--text-secondary); border-radius: 8px; cursor: pointer; font-size: 13px;">
+                        Cancelar
+                    </button>
+                    <button (click)="submitInstance()" [disabled]="isCreatingInstance" class="send-btn" style="flex: 1; border-radius: 8px; color: black; font-weight: 600; font-size: 13px; padding: 10px;">
+                        {{ isCreatingInstance ? 'Conectando...' : 'Guardar y Vincular' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audit Logs Modal -->
+    <div *ngIf="isAuditModalOpen" [@popIn] class="modal-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 1000;">
+        <div class="modal-content" style="background: var(--bg-card); width: 880px; max-width: 95vw; padding: 28px; border-radius: 16px; border: 1px solid var(--border-subtle); box-shadow: 0 25px 50px rgba(0,0,0,0.8); max-height: 85vh; display: flex; flex-direction: column;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <div>
+                    <h3 style="font-size: 18px; font-weight: 600; color: white; display: flex; align-items: center; gap: 8px; margin: 0 0 4px 0;">
+                        📋 <span>Registro de Auditoría de Operaciones Críticas</span>
+                    </h3>
+                    <p style="color: var(--text-muted); font-size: 12px; margin: 0;">
+                        Control inmutable de cancelaciones de procesos (`KILL / TERMINATE`), creación de contratos e instancias.
+                    </p>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <button (click)="loadAuditLogs()" title="Refrescar auditoría" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;">
+                        🔄 Refrescar
+                    </button>
+                    <button (click)="closeAuditModal()" style="background: transparent; border: none; color: var(--text-secondary); font-size: 20px; cursor: pointer;">✖️</button>
+                </div>
+            </div>
+
+            <div style="flex: 1; overflow-y: auto; margin-top: 15px; border-radius: 8px; border: 1px solid var(--border-subtle);">
+                <div *ngIf="isAuditLoading" style="text-align: center; padding: 40px; color: var(--text-secondary); font-size: 13px;">
+                    Cargando registros de auditoría...
+                </div>
+
+                <div *ngIf="!isAuditLoading && auditLogs.length === 0" style="text-align: center; padding: 40px; color: var(--text-muted); font-size: 13px;">
+                    No se registran eventos críticos de auditoría todavía.
+                </div>
+
+                <table *ngIf="!isAuditLoading && auditLogs.length > 0" style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; color: var(--text-secondary);">
+                    <thead>
+                        <tr style="background: rgba(0,0,0,0.4); border-bottom: 1px solid var(--border-subtle); color: var(--text-primary);">
+                            <th style="padding: 10px 14px; font-weight: 600;">Fecha / Hora</th>
+                            <th style="padding: 10px 14px; font-weight: 600;">Usuario</th>
+                            <th style="padding: 10px 14px; font-weight: 600;">Acción</th>
+                            <th style="padding: 10px 14px; font-weight: 600;">Motor</th>
+                            <th style="padding: 10px 14px; font-weight: 600;">SPID / PID</th>
+                            <th style="padding: 10px 14px; font-weight: 600;">Estado</th>
+                            <th style="padding: 10px 14px; font-weight: 600;">Detalles</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr *ngFor="let log of auditLogs" style="border-bottom: 1px solid rgba(255,255,255,0.04);">
+                            <td style="padding: 10px 14px; white-space: nowrap; font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);">
+                                {{ log.timestamp ? (log.timestamp | date:'short') : '-' }}
+                            </td>
+                            <td style="padding: 10px 14px; font-weight: 600; color: white;">
+                                {{ log.username }}
+                            </td>
+                            <td style="padding: 10px 14px;">
+                                <span [ngStyle]="{'background': log.action.includes('KILL') ? 'rgba(239,68,68,0.15)' : 'rgba(0,229,255,0.15)', 'color': log.action.includes('KILL') ? '#ef4444' : '#00e5ff', 'padding': '2px 8px', 'border-radius': '6px', 'font-size': '11px', 'font-weight': '600'}">
+                                    {{ log.action }}
+                                </span>
+                            </td>
+                            <td style="padding: 10px 14px; color: var(--text-primary);">
+                                {{ log.engine || '-' }}
+                            </td>
+                            <td style="padding: 10px 14px; font-weight: 600; font-family: var(--font-mono);">
+                                {{ log.target_spid ? ('#' + log.target_spid) : '-' }}
+                            </td>
+                            <td style="padding: 10px 14px;">
+                                <span [ngStyle]="{'color': log.status === 'SUCCESS' ? '#00e676' : (log.status === 'UNAUTHORIZED' ? '#f59e0b' : '#ff5252'), 'font-weight': '600', 'font-size': '11px'}">
+                                    {{ log.status }}
+                                </span>
+                            </td>
+                            <td style="padding: 10px 14px; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" [title]="log.details">
+                                {{ log.details || '-' }}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Contract Modal -->
+    <div *ngIf="isEditContractModalOpen" [@popIn] class="modal-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 1000;">
+        <div class="modal-content" style="background: var(--bg-card); width: 460px; padding: 28px; border-radius: 16px; border: 1px solid var(--border-subtle); box-shadow: 0 25px 50px rgba(0,0,0,0.8);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="font-size: 17px; font-weight: 600; color: white; display: flex; align-items: center; gap: 8px; margin: 0;">
+                    ✏️ <span>Editar Nombre de Contrato</span>
+                </h3>
+                <button (click)="closeEditContractModal()" style="background: transparent; border: none; color: var(--text-secondary); font-size: 18px; cursor: pointer;">✕</button>
+            </div>
+            
+            <p style="color: var(--text-secondary); font-size: 12.5px; margin-bottom: 20px;">
+                Actualiza el nombre del contrato. Todas las instancias vinculadas se conservarán intactas.
+            </p>
+            
+            <div style="display: grid; gap: 15px;">
+                <div>
+                    <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 500;">Nombre del Contrato</label>
+                    <input type="text" [(ngModel)]="editingContractName" (keyup.enter)="submitUpdateContract()" class="form-input-sm" style="margin-top: 6px; width: 100%; box-sizing: border-box;" placeholder="Ej: Nuevo Nombre Contrato">
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button (click)="closeEditContractModal()" style="flex: 1; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: var(--text-secondary); border-radius: 8px; cursor: pointer; font-size: 13px;">
+                        Cancelar
+                    </button>
+                    <button (click)="submitUpdateContract()" [disabled]="isUpdatingContract" class="send-btn" style="flex: 1; border-radius: 8px; color: black; font-weight: 600; font-size: 13px; padding: 10px;">
+                        {{ isUpdatingContract ? 'Actualizando...' : 'Guardar Cambios' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Password Modal for Admin -->
+    <div *ngIf="isChangePasswordModalOpen" [@popIn] class="modal-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 100010;">
+        <div class="modal-content" style="background: var(--bg-card); width: 440px; padding: 26px; border-radius: 16px; border: 1px solid var(--border-subtle); box-shadow: 0 25px 50px rgba(0,0,0,0.8);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 style="font-size: 17px; font-weight: 600; color: white; display: flex; align-items: center; gap: 8px; margin: 0;">
+                    🔑 <span>Cambiar Contraseña de Usuario</span>
+                </h3>
+                <button (click)="closeChangePasswordModal()" style="background: transparent; border: none; color: var(--text-secondary); font-size: 18px; cursor: pointer;">✕</button>
+            </div>
+
+            <div *ngIf="targetUserForPassword" style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+                <div style="font-size: 13px; font-weight: 600; color: white;">{{ targetUserForPassword.username }}</div>
+                <div style="font-size: 12px; color: var(--text-muted);">{{ targetUserForPassword.email || targetUserForPassword.full_name || 'Sin correo registrado' }}</div>
+            </div>
+
+            <div style="display: grid; gap: 14px;">
+                <div>
+                    <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Nueva Contraseña (mínimo 8 caracteres)</label>
+                    <input type="password" [(ngModel)]="newPasswordForUser" (keyup.enter)="submitChangePassword()" class="form-input-sm" style="margin-top: 6px; width: 100%; box-sizing: border-box;" placeholder="Ingresa la nueva contraseña">
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 6px;">
+                    <button (click)="closeChangePasswordModal()" style="flex: 1; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: var(--text-secondary); border-radius: 8px; cursor: pointer; font-size: 13px;">
+                        Cancelar
+                    </button>
+                    <button (click)="submitChangePassword()" [disabled]="isChangingPassword" class="send-btn" style="flex: 1; border-radius: 8px; color: black; font-weight: 600; font-size: 13px; padding: 10px;">
+                        {{ isChangingPassword ? 'Guardando...' : 'Actualizar Contraseña' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit User Modal -->
+    <div *ngIf="isEditUserModalOpen" [@popIn] class="modal-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 100010;">
+        <div class="modal-content" style="background: var(--bg-card); width: 480px; padding: 26px; border-radius: 16px; border: 1px solid var(--border-subtle); box-shadow: 0 25px 50px rgba(0,0,0,0.8);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 style="font-size: 17px; font-weight: 600; color: white; display: flex; align-items: center; gap: 8px; margin: 0;">
+                    <span>✏️</span> <span>Editar Información de Usuario</span>
+                </h3>
+                <button (click)="closeEditUserModal()" style="background: transparent; border: none; color: var(--text-secondary); font-size: 18px; cursor: pointer;">✕</button>
+            </div>
+
+            <div style="background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.15); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+                <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Usuario del Sistema</div>
+                <div style="font-size: 14px; font-weight: 600; color: var(--cyan); margin-top: 2px;">{{ editingUserForm.username }}</div>
+            </div>
+
+            <div style="display: grid; gap: 14px;">
+                <div>
+                    <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Nombre Completo</label>
+                    <input type="text" [(ngModel)]="editingUserForm.full_name" class="form-input-sm" style="margin-top: 6px; width: 100%; box-sizing: border-box;" placeholder="Ej: Juan Pérez">
+                </div>
+
+                <div>
+                    <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Correo Electrónico</label>
+                    <input type="email" [(ngModel)]="editingUserForm.email" class="form-input-sm" style="margin-top: 6px; width: 100%; box-sizing: border-box;" placeholder="usuario@arus.com.co">
+                </div>
+
+                <div>
+                    <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Rol Asignado</label>
+                    <select [(ngModel)]="editingUserForm.role" class="form-input-sm" style="margin-top: 6px; width: 100%; box-sizing: border-box;">
+                        <option>Administrador</option>
+                        <option>DBA Principal</option>
+                        <option>Monitor</option>
+                    </select>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 8px;">
+                    <button (click)="closeEditUserModal()" style="flex: 1; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: var(--text-secondary); border-radius: 8px; cursor: pointer; font-size: 13px;">
+                        Cancelar
+                    </button>
+                    <button (click)="submitUpdateUser()" [disabled]="isUpdatingUser" class="send-btn" style="flex: 1.2; border-radius: 8px; color: black; font-weight: 600; font-size: 13px; padding: 10px;">
+                        {{ isUpdatingUser ? 'Guardando...' : 'Guardar Cambios' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cyber Maintenance Animation Overlay -->
+    <div *ngIf="isMaintenanceActive || (isServerMaintenanceActive && !isAdmin)" class="maintenance-overlay" [@fadeSlideUp]>
+        <div class="maintenance-card">
+            <div class="maintenance-animation-container">
+                <div class="gear-ring-outer"></div>
+                <div class="gear-ring-inner"></div>
+                <div class="gear-pulse-core">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#00e5ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                </div>
+            </div>
+
+            <div class="maintenance-badge">
+                <span class="pulse-dot-amber"></span>
+                MODO MANTENIMIENTO ACTIVO
+            </div>
+
+            <h2 class="maintenance-title">{{ maintenanceTitle }}</h2>
+            <p class="maintenance-subtitle">{{ maintenanceSubtitle }}</p>
+
+            <!-- Digital Live Maintenance Elapsed Timer -->
+            <div style="margin: 14px 0 18px 0; background: rgba(0, 0, 0, 0.55); border: 1px solid rgba(0, 229, 255, 0.35); border-radius: 10px; padding: 10px 22px; display: inline-flex; align-items: center; gap: 14px; box-shadow: 0 0 20px rgba(0, 229, 255, 0.12);">
+                <div style="font-size: 22px; color: var(--cyan);">⏱️</div>
+                <div style="display: flex; flex-direction: column; align-items: flex-start;">
+                    <span style="font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-secondary); font-weight: 600;">Tiempo Transcurrido en Mantenimiento</span>
+                    <span style="font-family: 'JetBrains Mono', monospace, Courier; font-size: 24px; font-weight: 800; color: var(--cyan); letter-spacing: 2px;">{{ maintenanceElapsedFormatted }}</span>
+                </div>
+            </div>
+
+            <div class="maintenance-progress-wrapper">
+                <div class="maintenance-progress-bar">
+                    <div class="maintenance-progress-fill"></div>
+                </div>
+                <div class="maintenance-progress-labels">
+                    <span>Sincronizando motores y telemetría</span>
+                    <span class="text-cyan">En tiempo real</span>
+                </div>
+            </div>
+
+            <div class="maintenance-status-chips">
+                <span class="status-chip"><span class="chip-dot chip-green"></span> SQL Server DMV Online</span>
+                <span class="status-chip"><span class="chip-dot chip-cyan"></span> PostgreSQL Telemetría OK</span>
+                <span class="status-chip"><span class="chip-dot chip-amber"></span> Optimización en Proceso</span>
+            </div>
+
+            <!-- Non-Admin: Locked State (Cannot dismiss or close) -->
+            <div *ngIf="!isAdmin" class="maintenance-locked-status" style="margin-top: 24px; padding: 14px 20px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 10px; text-align: center;">
+                <div style="color: #ff6b6b; font-weight: 600; font-size: 13.5px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <span>🔒</span> Acceso Restringido Temporalmente
+                </div>
+                <p style="margin: 6px 0 0 0; color: var(--text-secondary); font-size: 12px; line-height: 1.45;">
+                    El Administrador se encuentra realizando ajustes críticos en el sistema.<br>Esta pantalla se desbloqueará automáticamente en cuanto finalice el mantenimiento.
+                </p>
+            </div>
+
+            <!-- Admin Controls: Can continue to use features or deactivate globally -->
+            <div *ngIf="isAdmin" style="margin-top: 22px; display: flex; flex-direction: column; gap: 10px; width: 100%;">
+                <div style="font-size: 12px; color: var(--cyan); text-align: center; font-weight: 500; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                    <span>🛡️</span> Modo Administrador Activo — Los demás usuarios tienen el acceso bloqueado.
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                    <button class="maintenance-dismiss-btn" style="flex: 1; min-width: 180px;" (click)="dismissAdminPreview()">
+                        ✕ Continuar en Dashboard (Admin)
+                    </button>
+                    <button class="maintenance-dismiss-btn" style="flex: 1; min-width: 180px; background: rgba(0, 229, 255, 0.15); border-color: rgba(0, 229, 255, 0.4); color: var(--cyan);" (click)="openMaintenanceConfigModal()">
+                        ⚙️ Configurar Módulos
+                    </button>
+                    <button class="maintenance-dismiss-btn" style="flex: 1; min-width: 180px; background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.4); color: #ff6b6b;" (click)="toggleServerMaintenance(false)">
+                        ⏹️ Desactivar Mantenimiento
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- About Project Modal (Antigravity IDE / DataCheck Pro Exact Style) -->
+    <div *ngIf="isAboutModalOpen" [@popIn] class="modal-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 100000;">
+        <div class="about-modal-box">
+            <div class="about-modal-header">
+                <div class="about-info-icon">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#007acc" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>
+                </div>
+                <div class="about-title-block">
+                    <h2>DataCheck Pro</h2>
+                    <span class="about-subtitle">Enterprise Multi-Engine Telemetry & DBA Governance</span>
+                </div>
+                <button class="about-close-x" (click)="closeAboutModal()">✕</button>
+            </div>
+
+            <div class="about-modal-body">
+                <p class="about-summary-text">
+                    Plataforma integral de telemetría en tiempo real, monitoreo proactivo y gobernanza de motores de bases de datos de misión crítica (Microsoft SQL Server y PostgreSQL). Supervisa salud del sistema, esperas, bloqueos, almacenamiento y auditoría con soporte para ventanas globales de mantenimiento.
+                </p>
+
+                <div class="about-specs-grid">
+                    <div class="about-spec-row">
+                        <span class="about-spec-key">DataCheck Pro Version:</span>
+                        <span class="about-spec-val text-cyan">{{ appVersion }}</span>
+                    </div>
+                    <div class="about-spec-row">
+                        <span class="about-spec-key">Architecture:</span>
+                        <span class="about-spec-val">Jhojan Usuga Vargas</span>
+                    </div>
+                    <div class="about-spec-row">
+                        <span class="about-spec-key">Frontend:</span>
+                        <span class="about-spec-val">Angular 18.2 + Chart.js</span>
+                    </div>
+                    <div class="about-spec-row">
+                        <span class="about-spec-key">Backend:</span>
+                        <span class="about-spec-val">FastAPI 0.142 + Python 3.14 + SQLAlchemy 2.0</span>
+                    </div>
+                    <div class="about-spec-row">
+                        <span class="about-spec-key">Supported Engines:</span>
+                        <span class="about-spec-val">Microsoft SQL Server (ODBC 18) & PostgreSQL (PG12-PG17)</span>
+                    </div>
+                    <div class="about-spec-row">
+                        <span class="about-spec-key">Security:</span>
+                        <span class="about-spec-val">AES-128 Fernet & JWT & Immutable Audit Logs</span>
+                    </div>
+                    <div class="about-spec-row">
+                        <span class="about-spec-key">Date:</span>
+                        <span class="about-spec-val">2026-10-12</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="about-modal-footer">
+                <button class="about-btn-copy" (click)="copySystemInfo()">Copy</button>
+                <button class="about-btn-ok" (click)="closeAboutModal()">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Maintenance Configuration Modal (Full lockdown vs Granular buttons) -->
+    <div *ngIf="isMaintenanceConfigModalOpen" [@popIn] class="modal-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.75); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 100000;">
+        <div class="about-modal-box" style="max-width: 620px; width: 92%; max-height: 88vh; display: flex; flex-direction: column;">
+            <div class="about-modal-header" style="border-bottom: 1px solid rgba(255,255,255,0.08);">
+                <div class="about-info-icon" style="background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.35);">
+                    <span style="font-size: 20px;">🛠️</span>
+                </div>
+                <div class="about-title-block">
+                    <h2>Gestor de Mantenimiento DBA</h2>
+                    <span class="about-subtitle">Bloqueo global o deshabilitación granular de botones</span>
+                </div>
+                <button class="about-close-x" (click)="closeMaintenanceConfigModal()">✕</button>
+            </div>
+
+            <div class="about-modal-body" style="overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding: 20px;">
+                <!-- Active Indicator & Realtime Timer -->
+                <div *ngIf="isServerMaintenanceActive" style="display: flex; justify-content: space-between; align-items: center; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 8px; padding: 10px 16px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="width: 9px; height: 9px; border-radius: 50%; background: #f59e0b; display: inline-block;"></span>
+                        <span style="font-size: 13px; font-weight: 600; color: #fbbf24;">Mantenimiento Actualmente Activo</span>
+                    </div>
+                    <div style="font-family: monospace; font-size: 14px; font-weight: 700; color: #fbbf24;">
+                        ⏱️ {{ maintenanceElapsedFormatted }}
+                    </div>
+                </div>
+
+                <!-- Mode Selection -->
+                <div>
+                    <label style="font-size: 11.5px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Alcance del Mantenimiento</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px;">
+                        <div (click)="isGlobalMaintenanceOption = true" [style.border-color]="isGlobalMaintenanceOption ? 'var(--cyan)' : 'rgba(255,255,255,0.1)'" [style.background]="isGlobalMaintenanceOption ? 'rgba(0, 229, 255, 0.08)' : 'rgba(255,255,255,0.02)'" style="border: 1px solid; border-radius: 8px; padding: 12px; cursor: pointer; transition: all 0.2s;">
+                            <div style="font-weight: 600; font-size: 13px; color: white; display: flex; align-items: center; gap: 6px;">
+                                <span>🛑 Bloqueo Total</span>
+                            </div>
+                            <p style="margin: 4px 0 0 0; font-size: 11px; color: var(--text-secondary); line-height: 1.4;">
+                                Bloquea toda la plataforma. Todos los no-admins ven la pantalla completa de mantenimiento con temporizador.
+                            </p>
+                        </div>
+                        <div (click)="isGlobalMaintenanceOption = false" [style.border-color]="!isGlobalMaintenanceOption ? '#f59e0b' : 'rgba(255,255,255,0.1)'" [style.background]="!isGlobalMaintenanceOption ? 'rgba(245, 158, 11, 0.08)' : 'rgba(255,255,255,0.02)'" style="border: 1px solid; border-radius: 8px; padding: 12px; cursor: pointer; transition: all 0.2s;">
+                            <div style="font-weight: 600; font-size: 13px; color: white; display: flex; align-items: center; gap: 6px;">
+                                <span>⚙️ Modular / Específico</span>
+                            </div>
+                            <p style="margin: 4px 0 0 0; font-size: 11px; color: var(--text-secondary); line-height: 1.4;">
+                                Deshabilita solo los botones en los que estés trabajando. El resto de la BD continúa operativa.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Granular Module Checkboxes -->
+                <div *ngIf="!isGlobalMaintenanceOption">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <label style="font-size: 11.5px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">Botones / Módulos a Deshabilitar</label>
+                        <div style="display: flex; gap: 10px;">
+                            <button type="button" (click)="toggleAllModulesSelection(true)" style="background: transparent; border: none; color: var(--cyan); font-size: 11px; cursor: pointer; text-decoration: underline;">Marcar Todos</button>
+                            <button type="button" (click)="toggleAllModulesSelection(false)" style="background: transparent; border: none; color: var(--text-secondary); font-size: 11px; cursor: pointer; text-decoration: underline;">Desmarcar</button>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-height: 190px; overflow-y: auto; padding-right: 4px;">
+                        <label *ngFor="let mod of availableMaintenanceModules" style="display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; transition: background 0.15s;">
+                            <input type="checkbox" [(ngModel)]="selectedModulesToDisable[mod.key]" style="cursor: pointer;">
+                            <span>{{ mod.icon }} {{ mod.label }}</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Title & Subtitle Inputs -->
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <label style="font-size: 11.5px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">Título del Aviso</label>
+                    <input type="text" [(ngModel)]="maintenanceTitle" placeholder="Ajustes del Sistema en Progreso" class="form-input-sm" style="width: 100%; box-sizing: border-box;">
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <label style="font-size: 11.5px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">Descripción o Motivo</label>
+                    <textarea [(ngModel)]="maintenanceSubtitle" rows="2" placeholder="Optimizando motores de bases de datos, reindexando..." class="form-input-sm" style="width: 100%; height: auto; resize: none; box-sizing: border-box;"></textarea>
+                </div>
+            </div>
+
+            <div class="about-modal-footer" style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.08);">
+                <button *ngIf="isServerMaintenanceActive" (click)="submitMaintenanceConfig(false)" [disabled]="isSavingMaintenanceConfig" style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.45); color: #ff6b6b; padding: 7px 14px; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: 600;">
+                    ⏹️ Desactivar Mantenimiento
                 </button>
+                <div *ngIf="!isServerMaintenanceActive"></div>
+                <div style="display: flex; gap: 8px;">
+                    <button class="about-btn-copy" (click)="closeMaintenanceConfigModal()">Cancelar</button>
+                    <button class="about-btn-ok" (click)="submitMaintenanceConfig(true)" [disabled]="isSavingMaintenanceConfig" style="background: linear-gradient(135deg, #00b4db, #0083b0); color: white; border: none;">
+                        {{ isSavingMaintenanceConfig ? 'Guardando...' : (isServerMaintenanceActive ? 'Actualizar Ajustes' : 'Activar Mantenimiento') }}
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 </div>
-
-
-
-</div>
-
-
-
-

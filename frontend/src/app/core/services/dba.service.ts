@@ -71,4 +71,8 @@ export class DbaService {
   getPgAutovacuum(): Observable<DbaActionResponse> {
     return this.getMaintenance();
   }
+
+  getTelemetryOverview(): Observable<any> {
+    return this.http.get<any>(`${this.baseUrl}/telemetry/overview`);
+  }
 }

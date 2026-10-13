@@ -16,7 +16,7 @@ class VerifyOtpRequest(BaseModel):
 
 class UpdatePasswordRequest(BaseModel):
     old_password: str
-    new_password: str = Field(min_length=6)
+    new_password: str = Field(min_length=8, description="Contraseña segura de mínimo 8 caracteres")
 
 
 class UpdatePhotoRequest(BaseModel):

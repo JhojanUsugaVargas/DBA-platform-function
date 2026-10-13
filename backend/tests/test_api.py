@@ -46,7 +46,7 @@ class TestDataCheckCore(unittest.TestCase):
         self.assertIn("exp", payload)
 
     def test_fernet_encryption(self):
-        plain = "Server=myServerAddress;Database=myDataBase;Uid=myUsername;Pwd=myPassword;"
+        plain = "MockEngine=InMemory;MockDatabase=testdb;MockKey=mock_secret_token_123;"
         encrypted = encrypt_data(plain)
         self.assertNotEqual(plain, encrypted)
         decrypted = decrypt_data(encrypted)
@@ -73,14 +73,14 @@ class TestDataCheckCore(unittest.TestCase):
             db=self.db,
             contract_id=contract_id,
             name="SQL_TEST_01",
-            conn_str="Server=127.0.0.1;Database=test;Uid=sa;Pwd=pass;"
+            conn_str="MockEngine=InMemory;MockDatabase=testdb;MockKey=mock_secret_token_123;"
         )
         self.assertIsNotNone(inst.id)
 
         instances = contract_repo.get_instances_by_contract(self.db, contract_id)
         self.assertEqual(len(instances), 1)
         self.assertEqual(instances[0]["name"], "SQL_TEST_01")
-        self.assertEqual(instances[0]["conn_str"], "Server=127.0.0.1;Database=test;Uid=sa;Pwd=pass;")
+        self.assertEqual(instances[0]["conn_str"], "MockEngine=InMemory;MockDatabase=testdb;MockKey=mock_secret_token_123;")
 
     def test_chat_repository(self):
         msg_id = chat_repo.add_chat_message(self.db, "admin", "Hola asistente")

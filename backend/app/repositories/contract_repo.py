@@ -20,6 +20,28 @@ def add_contract(db: Session, name: str) -> Dict[str, Any]:
     return {"id": contract.id, "name": contract.name, "is_active": contract.is_active}
 
 
+def update_contract(db: Session, contract_id: int, name: str) -> Optional[Dict[str, Any]]:
+    """Update name of an existing contract."""
+    contract = db.query(Contract).filter(Contract.id == contract_id).first()
+    if not contract:
+        return None
+    contract.name = name
+    db.commit()
+    db.refresh(contract)
+    return {"id": contract.id, "name": contract.name, "is_active": contract.is_active}
+
+
+def delete_contract(db: Session, contract_id: int) -> bool:
+    """Soft delete contract and cascade deactivation to instances."""
+    contract = db.query(Contract).filter(Contract.id == contract_id).first()
+    if not contract:
+        return False
+    contract.is_active = False
+    db.query(Instance).filter(Instance.contract_id == contract_id).update({Instance.is_active: False})
+    db.commit()
+    return True
+
+
 def get_instances_by_contract(db: Session, contract_id: int) -> List[Dict[str, Any]]:
     """Return active instances for a contract."""
     instances = db.query(Instance).filter(

@@ -53,7 +53,105 @@ DataCheck-web/
 └── start.ps1                 # Script PowerShell para iniciar ambos servicios en desarrollo local
 ```
 
----
+## 🌐 Estructura y Diagrama de la Página Web (Frontend Architecture)
+
+A continuación se ilustra la arquitectura de navegación, jerarquía de vistas, componentes y capas de la interfaz de usuario de **DataCheck Pro**:
+
+```mermaid
+flowchart TD
+    %% Estilos de Nodos
+    classDef root fill:#00e5ff,stroke:#0099cc,stroke-width:2px,color:#000,font-weight:bold;
+    classDef page fill:#131c2e,stroke:#00e5ff,stroke-width:1.5px,color:#fff;
+    classDef module fill:#1e293b,stroke:#38bdf8,stroke-width:1px,color:#e2e8f0;
+    classDef modal fill:#2e1065,stroke:#a855f7,stroke-width:1.5px,color:#f3e8ff;
+    classDef maint fill:#451a03,stroke:#f59e0b,stroke-width:1.5px,color:#fef3c7;
+    classDef guard fill:#052e16,stroke:#22c55e,stroke-width:1.5px,color:#dcfce7;
+
+    %% Flujo de Acceso
+    A[🔑 Login Page / /login] -->|JWT Auth Success| G{🛡️ AuthGuard}
+    G -->|Token Válido| B[🏠 Dashboard Principal / /dashboard]
+
+    %% Estructura de la Página Principal
+    subgraph LAYOUT["🖥️ Dashboard Layout (Home)"]
+        direction TB
+        B --> TOP["⚡ Barra Superior (Header & KPIs)"]
+        B --> SIDEBAR["📑 Panel Lateral (Sidebar de Navegación)"]
+        B --> MAIN_VIEW["📊 Vista Principal de Telemetría y Diagnóstico"]
+        B --> AI_CHAT["🤖 Asistente DBA Flotante (Google Gemini AI)"]
+        B --> MAINT_LAYER["🛠️ Capa de Mantenimiento y Control"]
+    end
+
+    %% Barra Superior
+    subgraph TOP_BAR["⚡ Header & KPIs Bar"]
+        TOP --> T1["📈 Tiras KPI en Tiempo Real (CPU, Conexiones, Buffer, Deadlocks)"]
+        TOP --> T2["🔄 Refrescar Telemetría"]
+        TOP --> T3["📄 Exportar Reporte a PDF"]
+        TOP --> T4["ℹ️ Modal 'Acerca de DataCheck Pro'"]
+        TOP --> T5["⭐ Feedback y Calificaciones"]
+        TOP --> T6["🛠️ Botón Mantenimiento DBA (Con Temporizador)"]
+    end
+
+    %% Panel Lateral (Sidebar)
+    subgraph SIDEBAR_NAV["📑 Panel Lateral (Jerarquía & Módulos)"]
+        SIDEBAR --> S_HIERARCHY["🏢 Selector de Contratos & Instancias"]
+        S_HIERARCHY --> MOD_CONTRACT["➕/✏️/🗑️ Modal CRUD Contratos"]
+        S_HIERARCHY --> MOD_INSTANCE["➕ Modal Registro Instancias (SQL Server / PG)"]
+
+        SIDEBAR --> S_ACTIONS["⚡ Acciones Rápidas & Telemetría"]
+        S_ACTIONS --> M1["📊 Telemetría 24h (Overview)"]
+        S_ACTIONS --> M2["⚡ Monitor de Salud & CPU"]
+        S_ACTIONS --> M3["⏱️ Estadísticas de Espera"]
+        S_ACTIONS --> M4["🔒 Análisis de Bloqueos"]
+        S_ACTIONS --> M5["🧹 Bloat y Fragmentación"]
+        S_ACTIONS --> M6["⚙️ Salud Mantenimiento"]
+        S_ACTIONS --> M7["💾 Almacenamiento & Discos"]
+        S_ACTIONS --> M8["🗂️ Uso de TempDB"]
+        S_ACTIONS --> M9["👤 Sesiones Activas (WhoIsActive)"]
+        S_ACTIONS --> M10["📋 Estado de Jobs"]
+        S_ACTIONS --> M11["🔗 Nodos AlwaysOn"]
+        S_ACTIONS --> M12["📈 Performance General"]
+        S_ACTIONS --> M13["🔍 Validar Data y Log"]
+        S_ACTIONS --> M14["❌ Forzar Cancelación (Kill)"]
+
+        SIDEBAR --> S_ADMIN["👥 Configuración & Gobernanza"]
+        S_ADMIN --> MOD_AUDIT["📋 Modal Registro de Auditoría Inmutable"]
+        S_ADMIN --> MOD_USERS["👥 Modal Gestión de Usuarios (CRUD, Invitar, Clave)"]
+        S_ADMIN --> MOD_PROFILE["👤 Modal Perfil & Seguridad MFA"]
+    end
+
+    %% Capa de Mantenimiento
+    subgraph MAINTENANCE["🛠️ Capa de Mantenimiento & Temporizador"]
+        MAINT_LAYER --> ML_GLOBAL["🛑 Bloqueo Total (Overlay Cyber Pantalla Completa)"]
+        MAINT_LAYER --> ML_PARTIAL["⚠️ Banner Mantenimiento Modular (Botones específicos en ajuste)"]
+        MAINT_LAYER --> ML_TIMER["⏱️ Temporizador Digital en Vivo (HH:MM:SS)"]
+        MAINT_LAYER --> ML_CONFIG["⚙️ Modal Configuración de Mantenimiento (Admin)"]
+    end
+
+    %% Asignación de Estilos
+    class A,B root;
+    class G guard;
+    class T1,T2,T3,T4,T5,T6,M1,M2,M3,M4,M5,M6,M7,M8,M9,M10,M11,M12,M13,M14 module;
+    class MOD_CONTRACT,MOD_INSTANCE,MOD_AUDIT,MOD_USERS,MOD_PROFILE,ML_CONFIG modal;
+    class ML_GLOBAL,ML_PARTIAL,ML_TIMER maint;
+```
+
+### 🧩 Desglose de Componentes y Funcionalidades
+
+| Componente / Módulo | Tipo | Responsabilidad / Descripción |
+| :--- | :--- | :--- |
+| **`LoginComponent`** | Página | Acceso seguro con credenciales, validación JWT y opción de doble factor (`OTP/MFA`). |
+| **`DashboardComponent`** | Página / Hub | Contenedor principal de telemetría reactiva, visualización gráfica y gestión DBA. |
+| **`Top Header & KPIs Strip`** | Componente UI | Barra superior con métricas críticas en vivo (CPU %, hilos de conexión, memoria buffer y deadlocks 24h). |
+| **`Sidebar Hierarchy`** | Navegación | Gestión jerárquica con selectors de contratos clientes e instancias de BD registradas. |
+| **`Quick Actions Grid`** | Control | 13 botones de diagnóstico directo que consultan DMVs de SQL Server y catálogos de PostgreSQL. |
+| **`Performance Charts`** | Visualización | 4 paneles con gráficos interactivos (`Chart.js`) para CPU, esperas, contención de bloqueos y throughput. |
+| **`AI Chat Widget`** | Asistente Flotante | Asistente conversacional DBA impulsado por Google Gemini con soporte de búsqueda en tiempo real e historial persistente. |
+| **`Cyber Maintenance Overlay`** | Capa de Seguridad | Bloqueo animado de pantalla completa con temporizador digital activo para ventanas de mantenimiento globales. |
+| **`Partial Maintenance Banner`** | Capa de Seguridad | Cinta informativa y deshabilitación visual (`⚙️ En ajuste`) de botones específicos cuando se modifican módulos individuales. |
+| **`Maintenance Config Modal`** | Modal Admin | Panel para configurar ventanas de mantenimiento (Bloqueo Total vs. Modular) y elegir qué botones restringir. |
+| **`User Management Modal`** | Modal Admin | Administración completa de usuarios (creación, asignación de roles, invitaciones automáticas por correo y restablecimiento de contraseña). |
+| **`Audit Logs Modal`** | Modal Admin | Visor de pistas de auditoría inmutables para monitorear acciones críticas realizadas en el sistema. |
+| **`About Project Modal`** | Modal Informativo | Ficha técnica del sistema (DataCheck Pro v2.5.5, arquitectura, versiones del stack y autoría). |
 
 ## 🛠️ Requisitos Previos
 
