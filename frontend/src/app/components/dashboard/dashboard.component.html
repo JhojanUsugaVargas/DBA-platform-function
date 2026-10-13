@@ -996,7 +996,7 @@
     </div>
 
     <!-- Cyber Maintenance Animation Overlay -->
-    <div *ngIf="isMaintenanceActive || (isServerMaintenanceActive && !isAdmin)" class="maintenance-overlay" [@fadeSlideUp]>
+    <div *ngIf="isMaintenanceOverlayVisible" class="maintenance-overlay" [@fadeSlideUp]>
         <div class="maintenance-card">
             <div class="maintenance-animation-container">
                 <div class="gear-ring-outer"></div>

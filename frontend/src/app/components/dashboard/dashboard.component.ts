@@ -629,6 +629,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return this.disabledModules.length === 0 || this.disabledModules.includes('*') || this.disabledModules.includes('all');
   }
 
+  get isMaintenanceOverlayVisible(): boolean {
+    if (this.isServerMaintenanceActive) {
+      if (!this.isAdmin) {
+        // Non-admins ONLY see the full-screen lockdown overlay if it is a global lockdown
+        return this.isGlobalLock();
+      }
+      return this.isMaintenanceActive;
+    }
+    return this.isMaintenanceActive;
+  }
+
   isModuleDisabled(key: string): boolean {
     if (!this.isServerMaintenanceActive) return false;
     if (this.isGlobalLock()) return true;
