@@ -25,11 +25,27 @@ function Stop-Project {
 Stop-Project
 if ($Stop) { Write-Host "Servicios detenidos."; return }
 
-Start-Process powershell -ArgumentList '-NoExit', '-Command', `
-    "Set-Location '$root\backend'; python -m uvicorn app.main:app --host 127.0.0.1 --port 8005 --reload"
+# Verificar e iniciar PostgreSQL si no está activo
+$pgPort = Get-NetTCPConnection -LocalPort 5432 -ErrorAction SilentlyContinue
+if (-not $pgPort) {
+    $pgCtl = "C:\Program Files\PostgreSQL\18\bin\pg_ctl.exe"
+    $pgData = "C:\Program Files\PostgreSQL\18\data"
+    if (Test-Path $pgCtl -and Test-Path $pgData) {
+        Write-Host "Iniciando servicio de PostgreSQL..." -ForegroundColor Cyan
+        & $pgCtl start -D $pgData
+        Start-Sleep -Seconds 2
+    }
+}
+
+$backendPath = Join-Path $root "backend"
+$frontendPath = Join-Path $root "frontend"
 
 Start-Process powershell -ArgumentList '-NoExit', '-Command', `
-    "Set-Location '$root\frontend'; npx ng serve --port 4200"
+    "Set-Location -LiteralPath '$backendPath'; python -m uvicorn app.main:app --host 127.0.0.1 --port 8005 --reload"
 
-Write-Host "Backend:  http://127.0.0.1:8005/docs"
-Write-Host "Frontend: http://localhost:4200"
+Start-Process powershell -ArgumentList '-NoExit', '-Command', `
+    "Set-Location -LiteralPath '$frontendPath'; npx ng serve --port 4200"
+
+Write-Host "Backend:  http://127.0.0.1:8005/docs" -ForegroundColor Green
+Write-Host "Frontend: http://localhost:4200" -ForegroundColor Green
+
