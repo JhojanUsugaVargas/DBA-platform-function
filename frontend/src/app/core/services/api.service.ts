@@ -45,6 +45,15 @@ export class ApiService {
     return this.http.post<any>(`${this.baseUrl}/dba/instances/select?instance_id=${instanceId}`, {});
   }
 
+  testInstanceConnection(instanceId: number): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/admin/instances/${instanceId}/test`, {});
+  }
+
+  testConnectionString(connStr: string): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/admin/instances/test-connection`, { conn_str: connStr });
+  }
+
+
   // Gestión de Usuarios
   getUsers(): Observable<any[]> {
     return this.http.get<any[]>(`${this.baseUrl}/admin/users/all`);

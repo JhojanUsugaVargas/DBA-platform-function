@@ -15,7 +15,8 @@ from app.services.remote_db_service import (
     USER_ACTIVE_CONNECTIONS,
     NoInstanceSelected,
     remote_cursor,
-    kill_session
+    kill_session,
+    get_backup_status
 )
 from app.services.dba_queries.alwayson_monitor import query_alwayson_status
 from app.services.dba_queries.database_sizes import query_database_sizes
@@ -567,3 +568,41 @@ def get_telemetry_overview(
             "collectors_status": "OK (Saludable)"
         }
     }
+
+
+@router.get("/backups")
+@safe_action
+def action_backups(
+    user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Consulta el estado del último respaldo para todas las bases de datos de la instancia."""
+    with remote_cursor(user["username"]) as (cursor, engine):
+        data = get_backup_status(cursor, engine)
+
+        crit = data.get("critical_count", 0)
+        warn = data.get("warning_count", 0)
+        icon = "🚨" if crit > 0 else ("⚠️" if warn > 0 else "🟢")
+
+        db_lines = []
+        for d in data.get("databases", []):
+            st_icon = "🔴" if d["status"] == "CRITICAL" else ("🟡" if d["status"] == "WARNING" else "🟢")
+            db_lines.append(
+                f"{st_icon} **{d['database_name']}** ({d['recovery_model']})\n"
+                f"   - Full: {d['last_full_backup']}"
+                + (f" ({d['hours_since_full']}h atrás)" if d.get('hours_since_full') is not None else "")
+                + (f"\n   - Diff: {d['last_diff_backup']}" if d.get('last_diff_backup') and d['last_diff_backup'] != 'Nunca' else "")
+                + (f"\n   - Log: {d['last_log_backup']}" if d.get('last_log_backup') and d['last_log_backup'] != 'Nunca' else "")
+            )
+
+        msg = (
+            f"{icon} **Estado de Respaldos ({data.get('engine')})**\n\n"
+            + (f"⚠️ **Atención:** {crit} base(s) de datos sin respaldo completo en las últimas 24h!\n\n" if crit > 0 else "✅ Todas las bases de datos cuentan con respaldos recientes.\n\n")
+            + "\n\n".join(db_lines[:15])
+        )
+
+        return {
+            "type": "success",
+            "message": msg,
+            "data": data
+        }
+

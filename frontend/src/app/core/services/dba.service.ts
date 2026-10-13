@@ -75,4 +75,8 @@ export class DbaService {
   getTelemetryOverview(): Observable<any> {
     return this.http.get<any>(`${this.baseUrl}/telemetry/overview`);
   }
+
+  getBackups(): Observable<DbaActionResponse> {
+    return this.http.get<DbaActionResponse>(`${this.baseUrl}/backups`);
+  }
 }

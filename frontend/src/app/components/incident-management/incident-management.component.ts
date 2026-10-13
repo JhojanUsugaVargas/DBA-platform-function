@@ -290,6 +290,60 @@ export class IncidentManagementComponent implements OnInit {
     this.router.navigate(['/dashboard']);
   }
 
+  getSlaBadge(ticket: any): { label: string; class: string; icon: string } {
+    if (ticket.status === 'Resuelto' || ticket.status === 'Cerrado') {
+      return { label: 'Resuelto', class: 'sla-done', icon: '✅' };
+    }
+    if (!ticket.created_at) {
+      return { label: 'En Plazo', class: 'sla-ok', icon: '🟢' };
+    }
+    const createdTime = new Date(ticket.created_at).getTime();
+    const hoursElapsed = (Date.now() - createdTime) / (1000 * 60 * 60);
+
+    const prio = (ticket.priority || '').toLowerCase();
+    if (prio === 'crítica') {
+      if (hoursElapsed > 2) return { label: 'SLA Excedido (>2h)', class: 'sla-breached', icon: '🚨' };
+      if (hoursElapsed > 1) return { label: 'SLA En Riesgo (>1h)', class: 'sla-warning', icon: '⚠️' };
+    } else if (prio === 'alta') {
+      if (hoursElapsed > 4) return { label: 'SLA Excedido (>4h)', class: 'sla-breached', icon: '🚨' };
+      if (hoursElapsed > 2) return { label: 'SLA En Riesgo (>2h)', class: 'sla-warning', icon: '⚠️' };
+    } else {
+      if (hoursElapsed > 8) return { label: 'SLA Excedido (>8h)', class: 'sla-breached', icon: '🚨' };
+    }
+    return { label: 'En Plazo SLA', class: 'sla-ok', icon: '🟢' };
+  }
+
+  exportToCsv(): void {
+    if (!this.filteredIncidents.length) {
+      this.showToast('No hay tickets para exportar.', 'info');
+      return;
+    }
+    const headers = ['ID', 'Tipo', 'Prioridad', 'Modulo', 'Solicitante', 'Email', 'Estado', 'Descripcion', 'Notas_Agente', 'Fecha_Creacion'];
+    const rows = this.filteredIncidents.map(item => [
+      item.id,
+      `"${(item.ticket_type || '').replace(/"/g, '""')}"`,
+      `"${(item.priority || '').replace(/"/g, '""')}"`,
+      `"${(item.module || '').replace(/"/g, '""')}"`,
+      `"${(item.username || '').replace(/"/g, '""')}"`,
+      `"${(item.user_email || '').replace(/"/g, '""')}"`,
+      `"${(item.status || '').replace(/"/g, '""')}"`,
+      `"${(item.description || '').replace(/"/g, '""')}"`,
+      `"${(item.notes || '').replace(/"/g, '""')}"`,
+      `"${item.created_at || ''}"`
+    ]);
+
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `reporte_incidentes_dba_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    this.showToast('Reporte CSV generado exitosamente.', 'success');
+  }
+
   showToast(message: string, type: 'success' | 'error' | 'info' = 'success'): void {
     this.toastMessage = message;
     this.toastType = type;

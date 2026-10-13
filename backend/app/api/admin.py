@@ -8,6 +8,7 @@ from app.core.security import get_password_hash
 from app.db.session import get_db
 from app.repositories import user_repo, contract_repo, audit_repo, feedback_repo
 from app.services import email_service, maintenance_service
+from app.services.remote_db_service import test_remote_connection
 from app.schemas.admin import (
     UserCreateRequest,
     UserUpdateRequest,
@@ -298,6 +299,35 @@ def create_instance(
             "name": instance.name
         }
     }
+
+
+@router.post("/instances/{instance_id}/test", summary="Test connection to registered instance")
+def test_instance_endpoint(
+    instance_id: int,
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(role_required(["Administrador", "DBA Principal"]))
+):
+    """Test remote connectivity and latency to an existing registered instance."""
+    from app.models.contract import Instance
+    instance = db.query(Instance).filter(Instance.id == instance_id).first()
+    if not instance:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Instancia no encontrada.")
+
+    return test_remote_connection(instance.conn_str)
+
+
+@router.post("/instances/test-connection", summary="Test connection string on-the-fly")
+def test_connection_string_endpoint(
+    body: Dict[str, str],
+    _: Dict[str, Any] = Depends(role_required(["Administrador", "DBA Principal"]))
+):
+    """Test connection string parameters before saving a new instance."""
+    conn_str = body.get("conn_str")
+    if not conn_str or not conn_str.strip():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cadena de conexión requerida.")
+
+    return test_remote_connection(conn_str.strip())
+
 
 
 @router.get("/audit-logs", summary="Get system audit logs")

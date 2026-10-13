@@ -188,6 +188,46 @@ class TestIncidentsAndPermissions(unittest.TestCase):
         found = feedback_repo.get_feedback_by_id(self.db, ticket["id"])
         self.assertIsNone(found)
 
+    # -------------------------------------------------------------------------
+    # 3. INSTANCE HEALTHCHECK & BACKUP MONITORING TESTS
+    # -------------------------------------------------------------------------
+    def test_remote_connection_invalid_fails_safely(self):
+        """Testing invalid connection string returns structured failure without crashing."""
+        from app.services.remote_db_service import test_remote_connection
+        res = test_remote_connection("invalid_connection_string_test")
+        self.assertFalse(res["success"])
+        self.assertIn("error", res)
+        self.assertIsInstance(res["latency_ms"], (int, float))
+
+    def test_backup_status_parser_sqlserver(self):
+        """Verify get_backup_status parses rows and flags critical/warning correctly."""
+        from unittest.mock import MagicMock
+        from app.services.remote_db_service import get_backup_status
+
+        mock_cursor = MagicMock()
+        mock_cursor.description = [
+            ("database_name",), ("recovery_model",), ("last_full_backup",),
+            ("hours_since_full",), ("last_diff_backup",), ("last_log_backup",)
+        ]
+        # Database 1: recent backup (healthy)
+        # Database 2: no backup (critical)
+        # Database 3: backup > 24 hours (critical)
+        mock_cursor.fetchall.return_value = [
+            ("ProdDB", "FULL", "2026-10-13 02:00:00", "Nunca", "2026-10-13 07:00:00", 5),
+            ("BillingDB", "SIMPLE", None, None, None, None),
+            ("LegacyDB", "FULL", "2026-10-10 01:00:00", None, None, 72),
+        ]
+
+        result = get_backup_status(mock_cursor, "sqlserver")
+        self.assertEqual(result["engine"], "SQL Server")
+        self.assertEqual(result["total_databases"], 3)
+        self.assertEqual(result["critical_count"], 2)  # BillingDB (Nunca) + LegacyDB (>24h)
+        self.assertEqual(len(result["databases"]), 3)
+        self.assertEqual(result["databases"][0]["status"], "OK")
+        self.assertEqual(result["databases"][1]["status"], "CRITICAL")
+        self.assertEqual(result["databases"][2]["status"], "CRITICAL")
+
 
 if __name__ == "__main__":
     unittest.main()
+

@@ -26,7 +26,10 @@
 
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
                     <p class="sidebar-label" style="margin: 0; padding: 0;">Instancia SQL</p>
-                    <button class="add-btn-sm" (click)="openInstanceModal()" title="Nueva Instancia">+</button>
+                    <div style="display: flex; gap: 4px;">
+                        <button class="add-btn-sm" (click)="testCurrentInstance()" *ngIf="selectedInstanceId" title="⚡ Probar conectividad y latencia (Ping)" style="background: rgba(56,189,248,0.15); color: #38bdf8; border: 1px solid rgba(56,189,248,0.3);">⚡</button>
+                        <button class="add-btn-sm" (click)="openInstanceModal()" title="Nueva Instancia">+</button>
+                    </div>
                 </div>
                 <select id="instanceSelector" class="form-input-sm" [(ngModel)]="selectedInstanceId" (change)="onInstanceChange()">
                     <option *ngFor="let instance of instances" [value]="instance.id">{{ instance.name }}</option>
@@ -88,6 +91,10 @@
                     <button class="action-btn" [class.active]="activeTab === 'datalog'" [style.opacity]="!isAdmin && isModuleDisabled('datalog') ? '0.45' : '1'" [style.cursor]="!isAdmin && isModuleDisabled('datalog') ? 'not-allowed' : 'pointer'" (click)="selectTab('datalog')" [title]="(!isAdmin && isModuleDisabled('datalog')) ? '⚠️ Módulo en mantenimiento' : ''">
                         <span class="action-icon">🔍</span><span>Validar Data y Log</span>
                         <span *ngIf="isModuleDisabled('datalog')" style="font-size: 9px; background: rgba(245,158,11,0.25); color: #fbbf24; border: 1px solid rgba(245,158,11,0.5); padding: 1px 4px; border-radius: 4px; margin-left: auto;">⚙️ En ajuste</span>
+                    </button>
+                    <button class="action-btn" [style.opacity]="!isAdmin && isModuleDisabled('backups') ? '0.45' : '1'" [style.cursor]="!isAdmin && isModuleDisabled('backups') ? 'not-allowed' : 'pointer'" (click)="runAction('backups')" [title]="(!isAdmin && isModuleDisabled('backups')) ? '⚠️ Módulo en mantenimiento' : ''">
+                        <span class="action-icon">💾</span><span>Estado de Respaldos</span>
+                        <span *ngIf="isModuleDisabled('backups')" style="font-size: 9px; background: rgba(245,158,11,0.25); color: #fbbf24; border: 1px solid rgba(245,158,11,0.5); padding: 1px 4px; border-radius: 4px; margin-left: auto;">⚙️ En ajuste</span>
                     </button>
                     <button class="action-btn" [style.opacity]="!canCancelQueries || (!isAdmin && isModuleDisabled('cancelar')) ? '0.45' : '1'" [style.cursor]="!canCancelQueries || (!isAdmin && isModuleDisabled('cancelar')) ? 'not-allowed' : 'pointer'" (click)="runAction('cancelar')" [title]="!canCancelQueries ? '🔒 Acción restringida a DBA Principal y Administrador' : ((!isAdmin && isModuleDisabled('cancelar')) ? '⚠️ Módulo en mantenimiento' : '')">
                         <span class="action-icon">❌</span><span>Forzar Cancelación</span>
@@ -816,8 +823,15 @@
                     </div>
                 </div>
 
+                <div *ngIf="testConnectionFeedback" style="font-size: 12px; padding: 8px 12px; border-radius: 6px; background: rgba(0,0,0,0.5); border: 1px solid var(--border-subtle); margin-top: 10px;">
+                    {{ testConnectionFeedback }}
+                </div>
+
                 <div style="display: flex; gap: 10px; margin-top: 15px;">
-                    <button (click)="closeInstanceModal()" style="flex: 1; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: var(--text-secondary); border-radius: 8px; cursor: pointer; font-size: 13px;">
+                    <button (click)="testInstanceFormConnection()" [disabled]="isTestingConnection" type="button" style="padding: 10px 14px; background: rgba(56,189,248,0.12); border: 1px solid rgba(56,189,248,0.35); color: #38bdf8; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500;">
+                        {{ isTestingConnection ? '⚡ Probando...' : '⚡ Probar Conexión' }}
+                    </button>
+                    <button (click)="closeInstanceModal()" style="padding: 10px 14px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: var(--text-secondary); border-radius: 8px; cursor: pointer; font-size: 13px;">
                         Cancelar
                     </button>
                     <button (click)="submitInstance()" [disabled]="isCreatingInstance" class="send-btn" style="flex: 1; border-radius: 8px; color: black; font-weight: 600; font-size: 13px; padding: 10px;">
@@ -841,6 +855,9 @@
                     </p>
                 </div>
                 <div style="display: flex; align-items: center; gap: 10px;">
+                    <button (click)="exportAuditToCsv()" title="Exportar registros de auditoría a CSV / Excel" style="background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.3); color: #6ee7b7; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500;">
+                        📥 Exportar CSV
+                    </button>
                     <button (click)="loadAuditLogs()" title="Refrescar auditoría" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;">
                         🔄 Refrescar
                     </button>

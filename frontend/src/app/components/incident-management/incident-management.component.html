@@ -18,6 +18,10 @@
         <span class="icon" [class.spin]="isLoading">🔄</span>
         <span>Actualizar</span>
       </button>
+      <button class="btn-export-csv" (click)="exportToCsv()" title="Exportar solicitudes a formato CSV / Excel">
+        <span class="icon">📥</span>
+        <span>Exportar CSV</span>
+      </button>
       <button class="btn-primary-action" (click)="openCreateModal()">
         <span class="icon">➕</span>
         <span>Nuevo Ticket</span>
@@ -172,6 +176,7 @@
               <th style="width: 80px;">Ticket</th>
               <th style="width: 140px;">Tipo</th>
               <th style="width: 110px;">Prioridad</th>
+              <th style="width: 140px;">SLA Atención</th>
               <th style="width: 140px;">Módulo</th>
               <th style="width: 180px;">Solicitante</th>
               <th>Descripción</th>
@@ -201,6 +206,13 @@
               <td>
                 <span class="priority-badge" [ngClass]="item.priority.toLowerCase()">
                   {{ item.priority }}
+                </span>
+              </td>
+
+              <!-- SLA -->
+              <td>
+                <span class="sla-badge" [ngClass]="getSlaBadge(item).class">
+                  {{ getSlaBadge(item).icon }} {{ getSlaBadge(item).label }}
                 </span>
               </td>
 

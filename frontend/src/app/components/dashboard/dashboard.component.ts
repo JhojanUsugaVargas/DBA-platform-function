@@ -145,6 +145,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     contractId: null as number | null
   };
   isCreatingInstance: boolean = false;
+  isTestingConnection: boolean = false;
+  testConnectionFeedback: string = '';
 
   // Audit Logs Modal
   isAuditModalOpen: boolean = false;
@@ -183,6 +185,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     { key: 'alwayson', label: 'Nodos AlwaysOn / Réplicas', icon: '🔗' },
     { key: 'performance', label: 'Performance General', icon: '📈' },
     { key: 'datalog', label: 'Validar Data y Log', icon: '🔍' },
+    { key: 'backups', label: 'Estado de Respaldos (Backups)', icon: '💾' },
     { key: 'cancelar', label: 'Forzar Cancelación (Kill)', icon: '❌' }
   ];
 
@@ -364,6 +367,68 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
   }
 
+  buildNewInstanceConnStr(): string {
+    const host = this.newInstance.host.trim();
+    const port = this.newInstance.port;
+    const db = this.newInstance.database.trim();
+    const u = encodeURIComponent(this.newInstance.username.trim());
+    const p = encodeURIComponent(this.newInstance.password.trim());
+
+    if (this.newInstance.engine === 'postgres') {
+      return `postgresql+pg8000://${u}:${p}@${host}:${port}/${db}`;
+    } else {
+      return `DRIVER={ODBC Driver 18 for SQL Server};SERVER=${host},${port};DATABASE=${db};UID=${u};PWD=${p};TrustServerCertificate=yes;Encrypt=no;`;
+    }
+  }
+
+  testInstanceFormConnection() {
+    if (!this.newInstance.host.trim() || !this.newInstance.database.trim()) {
+      alert('Ingresa al menos Servidor/Host y Base de Datos para probar la conexión.');
+      return;
+    }
+    const connStr = this.buildNewInstanceConnStr();
+    this.isTestingConnection = true;
+    this.testConnectionFeedback = 'Probando conexión...';
+
+    this.apiService.testConnectionString(connStr).subscribe({
+      next: (res) => {
+        this.isTestingConnection = false;
+        if (res.success) {
+          this.testConnectionFeedback = `✅ ¡Conexión exitosa! (${res.latency_ms} ms) - Motor: ${res.engine}`;
+          alert(`✅ ¡Conexión Exitosa!\n\nMotor: ${res.engine}\nLatencia: ${res.latency_ms} ms\nVersión: ${res.version || 'OK'}`);
+        } else {
+          this.testConnectionFeedback = `❌ Error: ${res.error || 'No se pudo conectar'}`;
+          alert(`❌ Error al conectar (${res.latency_ms} ms):\n\n${res.error || 'Verifica host, puerto o credenciales.'}`);
+        }
+      },
+      error: (err) => {
+        this.isTestingConnection = false;
+        const msg = err.error?.detail || 'Error al probar conexión remota';
+        this.testConnectionFeedback = `❌ Error: ${msg}`;
+        alert(`❌ ${msg}`);
+      }
+    });
+  }
+
+  testCurrentInstance() {
+    if (!this.selectedInstanceId) {
+      alert('Por favor selecciona una instancia primero.');
+      return;
+    }
+    this.apiService.testInstanceConnection(this.selectedInstanceId).subscribe({
+      next: (res) => {
+        if (res.success) {
+          alert(`✅ ¡Instancia en Línea!\n\nMotor: ${res.engine}\nLatencia de respuesta: ${res.latency_ms} ms\nVersión: ${res.version || 'OK'}`);
+        } else {
+          alert(`⚠️ Falla en Instancia (${res.latency_ms} ms):\n\n${res.error || 'El servidor no responde o credenciales inválidas.'}`);
+        }
+      },
+      error: (err) => {
+        alert(err.error?.detail || 'Error al probar la instancia');
+      }
+    });
+  }
+
   // --- Audit Logs Modal ---
   openAuditModal() {
     this.isAuditModalOpen = true;
@@ -386,6 +451,34 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.isAuditLoading = false;
       }
     });
+  }
+
+  exportAuditToCsv() {
+    if (!this.auditLogs || !this.auditLogs.length) {
+      alert('No hay registros de auditoría para exportar.');
+      return;
+    }
+    const headers = ['ID', 'Usuario', 'Accion', 'Motor', 'SPID', 'Estado', 'Detalles', 'Fecha'];
+    const rows = this.auditLogs.map(item => [
+      item.id,
+      `"${(item.username || '').replace(/"/g, '""')}"`,
+      `"${(item.action || '').replace(/"/g, '""')}"`,
+      `"${(item.engine || '').replace(/"/g, '""')}"`,
+      `"${(item.target_spid || '')}"`,
+      `"${(item.status || '').replace(/"/g, '""')}"`,
+      `"${(item.details || '').replace(/"/g, '""')}"`,
+      `"${item.created_at || ''}"`
+    ]);
+
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `auditoria_datacheck_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 
 
@@ -1185,6 +1278,7 @@ Date: 2026-10-12`;
       case 'pg_bloat': actionObs = this.dbaService.getBloat(); break;
       case 'maintenance':
       case 'pg_autovacuum': actionObs = this.dbaService.getMaintenance(); break;
+      case 'backups': actionObs = this.dbaService.getBackups(); break;
       case 'cancelar': 
         this.isLoadingAction = false;
         if (!this.canCancelQueries) {
