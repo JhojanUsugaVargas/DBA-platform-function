@@ -370,32 +370,32 @@
   </main>
 
   <!-- =========================================================================
-       MODAL: REGISTRAR NUEVO INCIDENTE O REQUERIMIENTO
+       MODAL: REGISTRAR NUEVO INCIDENTE O REQUERIMIENTO (VENTANA FLOTANTE POPUP)
        ========================================================================= -->
-  <div *ngIf="isCreateModalOpen" class="modal-backdrop" (click)="closeCreateModal()">
-    <div class="modal-dialog glass-modal" (click)="$event.stopPropagation()">
-      <div class="modal-header">
+  <div *ngIf="isCreateModalOpen" class="modal-backdrop" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 10000;" (click)="closeCreateModal()">
+    <div class="modal-dialog" style="background: #0a0a0a; width: 620px; max-width: 95vw; border-radius: 14px; border: 1px solid rgba(255, 255, 255, 0.15); box-shadow: 0 25px 60px rgba(0,0,0,0.9); max-height: 90vh; display: flex; flex-direction: column; overflow: hidden;" (click)="$event.stopPropagation()">
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: #111111; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
         <div class="header-titles">
-          <h3>➕ Registrar Nueva Solicitud</h3>
-          <p class="modal-subtitle">Se almacenará en la base de datos de manera formal sin necesidad de SQL manual.</p>
+          <h3 style="margin: 0; font-size: 15px; font-weight: 600; color: #ededed;">➕ Registrar Nueva Solicitud</h3>
+          <p class="modal-subtitle" style="margin: 2px 0 0 0; font-size: 11px; color: #a1a1aa;">Se registrará de forma auditable en el sistema sin necesidad de manipular la base de datos.</p>
         </div>
-        <button class="modal-close-btn" (click)="closeCreateModal()">✕</button>
+        <button class="modal-close-btn" (click)="closeCreateModal()" style="background: transparent; border: none; color: #71717a; font-size: 18px; cursor: pointer;">✕</button>
       </div>
 
-      <div class="modal-body">
-        <div class="form-row">
-          <div class="form-group flex-1">
-            <label>Tipo de Solicitud *</label>
-            <select [(ngModel)]="newTicket.ticket_type" class="modal-input">
+      <div class="modal-body" style="padding: 20px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto;">
+        <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-group">
+            <label style="font-size: 11px; color: #a1a1aa; text-transform: uppercase;">Tipo de Solicitud *</label>
+            <select [(ngModel)]="newTicket.ticket_type" class="modal-input" style="width: 100%; margin-top: 4px; padding: 8px 10px; background: #111111; border: 1px solid rgba(255, 255, 255, 0.12); color: #ededed; border-radius: 6px; font-size: 12px;">
               <option value="Incidente">🚨 Incidente (Falla, Error o Lentitud)</option>
               <option value="Requerimiento">💡 Requerimiento (Acceso, Script, Configuración)</option>
               <option value="Soporte">🛠️ Soporte General</option>
             </select>
           </div>
 
-          <div class="form-group flex-1">
-            <label>Prioridad *</label>
-            <select [(ngModel)]="newTicket.priority" class="modal-input">
+          <div class="form-group">
+            <label style="font-size: 11px; color: #a1a1aa; text-transform: uppercase;">Prioridad *</label>
+            <select [(ngModel)]="newTicket.priority" class="modal-input" style="width: 100%; margin-top: 4px; padding: 8px 10px; background: #111111; border: 1px solid rgba(255, 255, 255, 0.12); color: #ededed; border-radius: 6px; font-size: 12px;">
               <option value="Crítica">🔥 Crítica (Impacto Severo)</option>
               <option value="Alta">⚠️ Alta</option>
               <option value="Media">⚡ Media</option>
@@ -404,10 +404,10 @@
           </div>
         </div>
 
-        <div class="form-row">
-          <div class="form-group flex-1">
-            <label>Módulo / Componente Afectado</label>
-            <select [(ngModel)]="newTicket.module" class="modal-input">
+        <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-group">
+            <label style="font-size: 11px; color: #a1a1aa; text-transform: uppercase;">Módulo Afectado</label>
+            <select [(ngModel)]="newTicket.module" class="modal-input" style="width: 100%; margin-top: 4px; padding: 8px 10px; background: #111111; border: 1px solid rgba(255, 255, 255, 0.12); color: #ededed; border-radius: 6px; font-size: 12px;">
               <option value="Base de Datos">🗄️ Base de Datos (SQL Server / PostgreSQL)</option>
               <option value="Rendimiento">⚡ Rendimiento & CPU</option>
               <option value="Almacenamiento">💾 Almacenamiento & TempDB</option>
@@ -417,9 +417,9 @@
             </select>
           </div>
 
-          <div class="form-group flex-1">
-            <label>Usuario Asignado / Solicitante</label>
-            <select [(ngModel)]="newTicket.username" class="modal-input">
+          <div class="form-group">
+            <label style="font-size: 11px; color: #a1a1aa; text-transform: uppercase;">Solicitante</label>
+            <select [(ngModel)]="newTicket.username" class="modal-input" style="width: 100%; margin-top: 4px; padding: 8px 10px; background: #111111; border: 1px solid rgba(255, 255, 255, 0.12); color: #ededed; border-radius: 6px; font-size: 12px;">
               <option [value]="currentUser">{{ currentUser }} (Yo)</option>
               <option *ngFor="let u of availableUsers" [value]="u.username">
                 {{ u.username }} ({{ u.role }})
@@ -429,39 +429,41 @@
         </div>
 
         <div class="form-group">
-          <label>Descripción del Problema o Requerimiento *</label>
+          <label style="font-size: 11px; color: #a1a1aa; text-transform: uppercase;">Descripción del Problema o Requerimiento *</label>
           <textarea
             rows="4"
-            class="modal-input textarea"
+            class="modal-input"
+            style="width: 100%; margin-top: 4px; padding: 8px 10px; background: #111111; border: 1px solid rgba(255, 255, 255, 0.12); color: #ededed; border-radius: 6px; font-size: 12px; resize: vertical; box-sizing: border-box;"
             placeholder="Describe detalladamente el incidente presentado o la necesidad requerida..."
             [(ngModel)]="newTicket.description"
           ></textarea>
         </div>
 
-        <div class="form-row">
-          <div class="form-group flex-1">
-            <label>Estado Inicial</label>
-            <select [(ngModel)]="newTicket.status" class="modal-input">
+        <div class="form-row" style="display: grid; grid-template-columns: 1fr 2fr; gap: 12px;">
+          <div class="form-group">
+            <label style="font-size: 11px; color: #a1a1aa; text-transform: uppercase;">Estado Inicial</label>
+            <select [(ngModel)]="newTicket.status" class="modal-input" style="width: 100%; margin-top: 4px; padding: 8px 10px; background: #111111; border: 1px solid rgba(255, 255, 255, 0.12); color: #ededed; border-radius: 6px; font-size: 12px;">
               <option value="Abierto">🟢 Abierto</option>
               <option value="En Progreso">🟡 En Progreso</option>
             </select>
           </div>
 
-          <div class="form-group flex-2">
-            <label>Notas Iniciales del Administrador (Opcional)</label>
+          <div class="form-group">
+            <label style="font-size: 11px; color: #a1a1aa; text-transform: uppercase;">Notas Iniciales de Asignación</label>
             <input
               type="text"
               class="modal-input"
-              placeholder="Ej. Se asigna al turno de la tarde para análisis de trazas"
+              style="width: 100%; margin-top: 4px; padding: 8px 10px; background: #111111; border: 1px solid rgba(255, 255, 255, 0.12); color: #ededed; border-radius: 6px; font-size: 12px; box-sizing: border-box;"
+              placeholder="Ej. Se asigna para análisis de consumo..."
               [(ngModel)]="newTicket.notes"
             />
           </div>
         </div>
       </div>
 
-      <div class="modal-footer">
-        <button class="btn-cancel" (click)="closeCreateModal()">Cancelar</button>
-        <button class="btn-save" (click)="submitCreateTicket()" [disabled]="isSubmittingCreate">
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; padding: 14px 20px; background: #111111; border-top: 1px solid rgba(255, 255, 255, 0.1);">
+        <button class="btn-cancel" (click)="closeCreateModal()" style="padding: 8px 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); color: #a1a1aa; border-radius: 6px; font-size: 12px; cursor: pointer;">Cancelar</button>
+        <button class="btn-save" (click)="submitCreateTicket()" [disabled]="isSubmittingCreate" style="padding: 8px 16px; background: rgba(0, 229, 255, 0.15); border: 1px solid rgba(0, 229, 255, 0.4); color: #00e5ff; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">
           <span *ngIf="!isSubmittingCreate">Guardar y Registrar</span>
           <span *ngIf="isSubmittingCreate">Registrando...</span>
         </button>
@@ -470,28 +472,32 @@
   </div>
 
   <!-- =========================================================================
-       MODAL: GESTIONAR Y RESOLVER TICKET (NOTAS DE AGENTE)
+       MODAL: GESTIONAR Y RESOLVER TICKET (VENTANA FLOTANTE POPUP)
        ========================================================================= -->
-  <div *ngIf="isEditModalOpen" class="modal-backdrop" (click)="closeEditModal()">
-    <div class="modal-dialog glass-modal" (click)="$event.stopPropagation()">
-      <div class="modal-header">
+  <div *ngIf="isEditModalOpen" class="modal-backdrop" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 10000;" (click)="closeEditModal()">
+    <div class="modal-dialog" style="background: #0a0a0a; width: 680px; max-width: 95vw; border-radius: 14px; border: 1px solid rgba(255, 255, 255, 0.15); box-shadow: 0 25px 60px rgba(0,0,0,0.9); max-height: 90vh; display: flex; flex-direction: column; overflow: hidden;" (click)="$event.stopPropagation()">
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: #111111; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
         <div class="header-titles">
-          <h3>✏️ Gestión y Resolución de Ticket #{{ editForm.id }}</h3>
-          <p class="modal-subtitle">Actualiza el estado operativo y redacta las notas de resolución para el usuario.</p>
+          <h3 style="margin: 0; font-size: 15px; font-weight: 600; color: #ededed;">✏️ Gestión y Resolución de Ticket #{{ editForm.id }}</h3>
+          <p class="modal-subtitle" style="margin: 2px 0 0 0; font-size: 11px; color: #a1a1aa;">Actualiza el estado operativo y redacta las notas técnicas para el usuario.</p>
         </div>
-        <button class="modal-close-btn" (click)="closeEditModal()">✕</button>
+        <button class="modal-close-btn" (click)="closeEditModal()" style="background: transparent; border: none; color: #71717a; font-size: 18px; cursor: pointer;">✕</button>
       </div>
 
-      <div class="modal-body">
-        <div class="original-ticket-preview">
-          <span class="preview-badge">{{ editForm.ticket_type }} - {{ editForm.module }}</span>
-          <p class="preview-desc">"{{ editForm.description }}"</p>
+      <div class="modal-body" style="padding: 20px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto;">
+        <!-- Resumen del ticket original -->
+        <div class="original-ticket-preview" style="background: #111111; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 12px 14px;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+            <span class="preview-badge" style="font-size: 11px; background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.25); padding: 2px 8px; border-radius: 4px; font-weight: 500;">{{ editForm.ticket_type }} - {{ editForm.module }}</span>
+            <span style="font-size: 11px; color: #71717a;">ID Solicitud: #{{ editForm.id }}</span>
+          </div>
+          <p class="preview-desc" style="margin: 0; font-size: 12.5px; color: #ededed; font-style: italic;">"{{ editForm.description }}"</p>
         </div>
 
-        <div class="form-row">
-          <div class="form-group flex-1">
-            <label>Estado Operativo *</label>
-            <select [(ngModel)]="editForm.status" class="modal-input status-highlight">
+        <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-group">
+            <label style="font-size: 11px; color: #a1a1aa; text-transform: uppercase;">Estado Operativo *</label>
+            <select [(ngModel)]="editForm.status" class="modal-input" style="width: 100%; margin-top: 4px; padding: 8px 10px; background: #111111; border: 1px solid rgba(0, 229, 255, 0.35); color: #ededed; border-radius: 6px; font-size: 12px;">
               <option value="Abierto">🟢 Abierto (Pendiente de atención)</option>
               <option value="En Progreso">🟡 En Progreso (Atendiendo activamente)</option>
               <option value="Resuelto">🔵 Resuelto (Solución implementada)</option>
@@ -499,9 +505,9 @@
             </select>
           </div>
 
-          <div class="form-group flex-1">
-            <label>Prioridad</label>
-            <select [(ngModel)]="editForm.priority" class="modal-input">
+          <div class="form-group">
+            <label style="font-size: 11px; color: #a1a1aa; text-transform: uppercase;">Prioridad</label>
+            <select [(ngModel)]="editForm.priority" class="modal-input" style="width: 100%; margin-top: 4px; padding: 8px 10px; background: #111111; border: 1px solid rgba(255, 255, 255, 0.12); color: #ededed; border-radius: 6px; font-size: 12px;">
               <option value="Crítica">🔥 Crítica</option>
               <option value="Alta">⚠️ Alta</option>
               <option value="Media">⚡ Media</option>
@@ -511,31 +517,33 @@
         </div>
 
         <div class="form-group">
-          <label>
+          <label style="font-size: 11px; color: #a1a1aa; text-transform: uppercase;">
             Notas del Agente / Solución Técnica *
-            <span class="label-help">(Esta información es la que el usuario consultará en el seguimiento del chat)</span>
+            <span style="font-size: 10px; color: #00e5ff; text-transform: none; margin-left: 6px;">(Esta información es la que el usuario consultará en el seguimiento del chat)</span>
           </label>
           <textarea
             rows="5"
-            class="modal-input textarea agent-notes-area"
-            placeholder="Detalla las acciones realizadas (ej. Se reindexó tabla dbo.Transacciones, se liberó espacio en el LUN y el consumo bajó a rangos normales)..."
+            class="modal-input"
+            style="width: 100%; margin-top: 4px; padding: 10px 12px; background: #111111; border: 1px solid rgba(255, 255, 255, 0.15); color: #ededed; border-radius: 6px; font-size: 12px; resize: vertical; box-sizing: border-box;"
+            placeholder="Detalla las acciones técnicas realizadas (ej. Se reindexó tabla dbo.Transacciones, se liberó espacio en el LUN y el consumo bajó a rangos normales)..."
             [(ngModel)]="editForm.notes"
           ></textarea>
         </div>
 
         <div class="form-group">
-          <label>Descripción / Observación Original</label>
+          <label style="font-size: 11px; color: #71717a; text-transform: uppercase;">Descripción / Observación Original</label>
           <textarea
             rows="2"
-            class="modal-input textarea"
+            class="modal-input"
+            style="width: 100%; margin-top: 4px; padding: 8px 10px; background: #111111; border: 1px solid rgba(255, 255, 255, 0.08); color: #a1a1aa; border-radius: 6px; font-size: 12px; box-sizing: border-box;"
             [(ngModel)]="editForm.description"
           ></textarea>
         </div>
       </div>
 
-      <div class="modal-footer">
-        <button class="btn-cancel" (click)="closeEditModal()">Cancelar</button>
-        <button class="btn-save" (click)="submitUpdateTicket()" [disabled]="isSubmittingEdit">
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; padding: 14px 20px; background: #111111; border-top: 1px solid rgba(255, 255, 255, 0.1);">
+        <button class="btn-cancel" (click)="closeEditModal()" style="padding: 8px 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); color: #a1a1aa; border-radius: 6px; font-size: 12px; cursor: pointer;">Cancelar</button>
+        <button class="btn-save" (click)="submitUpdateTicket()" [disabled]="isSubmittingEdit" style="padding: 8px 18px; background: rgba(0, 229, 255, 0.15); border: 1px solid rgba(0, 229, 255, 0.4); color: #00e5ff; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">
           <span *ngIf="!isSubmittingEdit">Guardar Cambios</span>
           <span *ngIf="isSubmittingEdit">Guardando...</span>
         </button>
@@ -544,62 +552,62 @@
   </div>
 
   <!-- =========================================================================
-       MODAL: DETALLES COMPLETOS DEL TICKET
+       MODAL: DETALLES COMPLETOS DEL TICKET (VENTANA FLOTANTE POPUP)
        ========================================================================= -->
-  <div *ngIf="isViewModalOpen && viewingTicket" class="modal-backdrop" (click)="closeViewModal()">
-    <div class="modal-dialog glass-modal" (click)="$event.stopPropagation()">
-      <div class="modal-header">
+  <div *ngIf="isViewModalOpen && viewingTicket" class="modal-backdrop" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 10000;" (click)="closeViewModal()">
+    <div class="modal-dialog" style="background: #0a0a0a; width: 680px; max-width: 95vw; border-radius: 14px; border: 1px solid rgba(255, 255, 255, 0.15); box-shadow: 0 25px 60px rgba(0,0,0,0.9); max-height: 90vh; display: flex; flex-direction: column; overflow: hidden;" (click)="$event.stopPropagation()">
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: #111111; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
         <div class="header-titles">
-          <h3>📋 Detalle Completo del Ticket #{{ viewingTicket.id }}</h3>
-          <p class="modal-subtitle">Fecha de Registro: {{ viewingTicket.created_at | date:'medium' }}</p>
+          <h3 style="margin: 0; font-size: 15px; font-weight: 600; color: #ededed;">📋 Detalle Completo del Ticket #{{ viewingTicket.id }}</h3>
+          <p class="modal-subtitle" style="margin: 2px 0 0 0; font-size: 11px; color: #a1a1aa;">Fecha de Registro: {{ viewingTicket.created_at | date:'medium' }}</p>
         </div>
-        <button class="modal-close-btn" (click)="closeViewModal()">✕</button>
+        <button class="modal-close-btn" (click)="closeViewModal()" style="background: transparent; border: none; color: #71717a; font-size: 18px; cursor: pointer;">✕</button>
       </div>
 
-      <div class="modal-body">
-        <div class="detail-grid">
+      <div class="modal-body" style="padding: 20px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto;">
+        <div class="detail-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; background: #111111; padding: 12px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);">
           <div class="detail-item">
-            <span class="label">Tipo:</span>
-            <span class="val">{{ viewingTicket.ticket_type }}</span>
+            <span class="label" style="font-size: 10px; color: #71717a; text-transform: uppercase;">Tipo:</span>
+            <span class="val" style="font-size: 12px; color: #ededed; font-weight: 500;">{{ viewingTicket.ticket_type }}</span>
           </div>
           <div class="detail-item">
-            <span class="label">Prioridad:</span>
-            <span class="val">{{ viewingTicket.priority }}</span>
+            <span class="label" style="font-size: 10px; color: #71717a; text-transform: uppercase;">Prioridad:</span>
+            <span class="val" style="font-size: 12px; color: #ededed; font-weight: 500;">{{ viewingTicket.priority }}</span>
           </div>
           <div class="detail-item">
-            <span class="label">Módulo:</span>
-            <span class="val">{{ viewingTicket.module }}</span>
+            <span class="label" style="font-size: 10px; color: #71717a; text-transform: uppercase;">Módulo:</span>
+            <span class="val" style="font-size: 12px; color: #ededed; font-weight: 500;">{{ viewingTicket.module }}</span>
           </div>
           <div class="detail-item">
-            <span class="label">Estado Actual:</span>
-            <span class="val status-pill" [ngClass]="viewingTicket.status.toLowerCase().replace(' ', '-')">{{ viewingTicket.status }}</span>
+            <span class="label" style="font-size: 10px; color: #71717a; text-transform: uppercase;">Estado Actual:</span>
+            <span class="val" style="font-size: 12px; color: #00e676; font-weight: 600;">{{ viewingTicket.status }}</span>
           </div>
           <div class="detail-item">
-            <span class="label">Solicitante:</span>
-            <span class="val">{{ viewingTicket.user_full_name }} ({{ viewingTicket.username }})</span>
+            <span class="label" style="font-size: 10px; color: #71717a; text-transform: uppercase;">Solicitante:</span>
+            <span class="val" style="font-size: 12px; color: #ededed; font-weight: 500;">{{ viewingTicket.user_full_name }} ({{ viewingTicket.username }})</span>
           </div>
           <div class="detail-item">
-            <span class="label">Email:</span>
-            <span class="val">{{ viewingTicket.user_email || 'No registrado' }}</span>
+            <span class="label" style="font-size: 10px; color: #71717a; text-transform: uppercase;">Email:</span>
+            <span class="val" style="font-size: 12px; color: #a1a1aa;">{{ viewingTicket.user_email || 'No registrado' }}</span>
           </div>
         </div>
 
         <div class="detail-section">
-          <h4>Descripción de la Solicitud</h4>
-          <div class="desc-box">{{ viewingTicket.description }}</div>
+          <h4 style="margin: 0 0 6px 0; font-size: 12px; color: #a1a1aa; text-transform: uppercase;">Descripción de la Solicitud</h4>
+          <div class="desc-box" style="background: #111111; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 6px; padding: 10px 12px; font-size: 12px; color: #ededed; line-height: 1.5;">{{ viewingTicket.description }}</div>
         </div>
 
         <div class="detail-section">
-          <h4>Notas Técnicas del Agente</h4>
-          <div class="notes-box" [class.empty]="!viewingTicket.notes">
+          <h4 style="margin: 0 0 6px 0; font-size: 12px; color: #a1a1aa; text-transform: uppercase;">Notas Técnicas del Agente</h4>
+          <div class="notes-box" style="background: #111111; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 6px; padding: 10px 12px; font-size: 12px; color: #00e5ff; line-height: 1.5;">
             {{ viewingTicket.notes || 'No se han registrado notas técnicas para este ticket aún.' }}
           </div>
         </div>
       </div>
 
-      <div class="modal-footer">
-        <button class="btn-cancel" (click)="closeViewModal()">Cerrar</button>
-        <button class="btn-save" (click)="closeViewModal(); openEditModal(viewingTicket)">
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; padding: 14px 20px; background: #111111; border-top: 1px solid rgba(255, 255, 255, 0.1);">
+        <button class="btn-cancel" (click)="closeViewModal()" style="padding: 8px 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); color: #a1a1aa; border-radius: 6px; font-size: 12px; cursor: pointer;">Cerrar</button>
+        <button class="btn-save" (click)="closeViewModal(); openEditModal(viewingTicket)" style="padding: 8px 16px; background: rgba(0, 229, 255, 0.15); border: 1px solid rgba(0, 229, 255, 0.4); color: #00e5ff; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">
           Editar / Resolver Ticket
         </button>
       </div>

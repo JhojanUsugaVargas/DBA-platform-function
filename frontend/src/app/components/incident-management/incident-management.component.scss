@@ -1052,43 +1052,61 @@
   }
 }
 
-/* ── Modal Dialogs (Jet Black Original Style) ── */
+/* ── Modal Dialogs (Jet Black Original Floating Window Style) ── */
+.modal-backdrop,
 .portal-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(6px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background: rgba(0, 0, 0, 0.85) !important;
+  backdrop-filter: blur(8px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 10000 !important;
   padding: 20px;
 }
 
+.modal-dialog,
 .portal-modal-card {
-  background: #0a0a0a;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 12px;
+  background: #0a0a0a !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 14px !important;
   width: 100%;
-  max-width: 580px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);
+  max-width: 680px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.9) !important;
   overflow: hidden;
-  animation: popUp 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  animation: popUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 
   &.modal-lg {
-    max-width: 700px;
+    max-width: 720px;
   }
 
   .modal-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 14px 20px;
+    padding: 16px 20px;
     background: #111111;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+
+    .header-titles {
+      h3 {
+        font-size: 15px;
+        font-weight: 600;
+        color: #ededed;
+        margin: 0;
+      }
+      .modal-subtitle {
+        font-size: 11px;
+        color: #a1a1aa;
+        margin: 2px 0 0 0;
+      }
+    }
 
     .modal-title-group {
       display: flex;
@@ -1111,19 +1129,70 @@
       background: transparent;
       border: none;
       color: #71717a;
-      font-size: 16px;
+      font-size: 18px;
       cursor: pointer;
+      padding: 4px;
+      line-height: 1;
       &:hover { color: #ededed; }
     }
   }
 
   .modal-body {
-    padding: 18px 20px;
+    padding: 20px;
     display: flex;
     flex-direction: column;
     gap: 14px;
     max-height: 75vh;
     overflow-y: auto;
+
+    .original-ticket-preview {
+      background: #111111;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 12px 14px;
+
+      .preview-badge {
+        font-size: 11px;
+        background: rgba(56, 189, 248, 0.12);
+        color: #38bdf8;
+        border: 1px solid rgba(56, 189, 248, 0.25);
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-weight: 500;
+      }
+
+      .preview-desc {
+        margin: 6px 0 0 0;
+        font-size: 12.5px;
+        color: #ededed;
+        font-style: italic;
+      }
+    }
+
+    .modal-input {
+      background: #111111;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 6px;
+      color: #ededed;
+      font-size: 12px;
+      padding: 8px 10px;
+      outline: none;
+      font-family: inherit;
+
+      &:focus {
+        border-color: #00e5ff;
+        box-shadow: 0 0 0 2px rgba(0, 229, 255, 0.15);
+      }
+
+      &::placeholder {
+        color: #52525b;
+      }
+
+      option {
+        background: #111111;
+        color: #ededed;
+      }
+    }
   }
 
   .modal-footer {
@@ -1131,26 +1200,28 @@
     align-items: center;
     justify-content: flex-end;
     gap: 10px;
-    padding: 12px 20px;
+    padding: 14px 20px;
     background: #111111;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
 
     .btn-cancel {
-      padding: 7px 14px;
+      padding: 8px 14px;
       background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.12);
       border-radius: 6px;
       color: #a1a1aa;
       font-size: 12px;
       cursor: pointer;
+      transition: all 0.15s ease;
       &:hover {
         background: rgba(255, 255, 255, 0.1);
         color: #ededed;
       }
     }
 
+    .btn-save,
     .btn-submit {
-      padding: 7px 16px;
+      padding: 8px 18px;
       background: rgba(0, 229, 255, 0.15);
       border: 1px solid rgba(0, 229, 255, 0.4);
       border-radius: 6px;
@@ -1161,6 +1232,7 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
+      transition: all 0.15s ease;
 
       &:hover:not(:disabled) {
         background: rgba(0, 229, 255, 0.25);
