@@ -53,7 +53,7 @@ Start-Process powershell -ArgumentList '-ExecutionPolicy', 'Bypass', '-NoExit', 
     "`$host.ui.RawUI.WindowTitle = 'DataCheck - Backend (:8005)'; Set-Location -LiteralPath '$backendPath'; & '$pythonExe' -m uvicorn app.main:app --host 127.0.0.1 --port 8005 --reload"
 
 Start-Process powershell -ArgumentList '-ExecutionPolicy', 'Bypass', '-NoExit', '-Command', `
-    "`$host.ui.RawUI.WindowTitle = 'DataCheck - Frontend (:4200)'; Set-Location -LiteralPath '$frontendPath'; npx ng serve --port 4200"
+    "`$host.ui.RawUI.WindowTitle = 'DataCheck - Frontend (:4200)'; Set-Location -LiteralPath '$frontendPath'; npx ng serve --host 0.0.0.0 --port 4200"
 
 Write-Host "Backend:  http://127.0.0.1:8005/docs" -ForegroundColor Green
 Write-Host "Frontend: http://localhost:4200" -ForegroundColor Green
