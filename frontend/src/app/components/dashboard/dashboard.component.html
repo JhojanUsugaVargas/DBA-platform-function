@@ -4,7 +4,7 @@
         <div class="sidebar-header">
             <div class="sidebar-logo">
                 <div class="logo-icon-sm">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                    <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
                 </div>
                 <span>DataCheck Pro</span>
             </div>
@@ -125,9 +125,9 @@
         </div>
 
                 <div class="sidebar-footer">
-            <div class="user-info" (click)="openProfileModal()" style="cursor: pointer; padding: 5px; border-radius: 8px; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
+            <div class="user-info" (click)="openProfileModal()" role="button" tabindex="0" (keydown.enter)="openProfileModal()" (keydown.space)="openProfileModal(); $event.preventDefault()" style="cursor: pointer; padding: 5px; border-radius: 8px; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
                 <div class="user-avatar" style="overflow: hidden;">
-                  <img *ngIf="profilePhotoUrl" [src]="profilePhotoUrl" style="width: 100%; height: 100%; object-fit: cover;">
+                  <img alt="Foto de perfil de {{ currentUser }}" *ngIf="profilePhotoUrl" [src]="profilePhotoUrl" style="width: 100%; height: 100%; object-fit: cover;">
                   <span *ngIf="!profilePhotoUrl">{{ currentUserInitials }}</span>
                 </div>
                 <div style="display: flex; flex-direction: column;">
@@ -136,6 +136,9 @@
                 </div>
             </div>
             <button class="logout-btn" (click)="logout()">Sign out</button>
+        </div>
+        <div style="padding: 10px 14px; border-top: 1px solid var(--border-subtle); background: var(--bg-secondary);">
+            <app-legal-links></app-legal-links>
         </div>
     </aside>
 
@@ -478,7 +481,7 @@
     <!-- Floating Chat -->
     <div class="floating-chat-container" [class.minimized]="isChatMinimized">
         <!-- Minimized Icon -->
-        <div class="chat-bubble-icon" (click)="toggleChat()">
+        <div class="chat-bubble-icon" (click)="toggleChat()" role="button" tabindex="0" (keydown.enter)="toggleChat()" (keydown.space)="toggleChat(); $event.preventDefault()">
             💬
         </div>
 
@@ -487,7 +490,7 @@
             <h3><span style="font-size: 16px;">🤖</span> DataCheck AI Assistant</h3>
             <div class="chat-header-actions">
                 <button (click)="clearChat()" title="Limpiar chat" style="display: flex; justify-content: center; align-items: center; margin-right: 8px;">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <svg aria-hidden="true" focusable="false" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                           <polyline points="3 6 5 6 21 6"></polyline>
                           <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                       </svg>
@@ -520,9 +523,9 @@
         </div>
 
         <div class="chat-input-area" *ngIf="!isChatMinimized">
-            <input type="text" #chatInputRef [(ngModel)]="chatInput" (keyup.enter)="sendMessage()" placeholder="Ej: matar 51...">
+            <input aria-label="Ej: matar 51..." type="text" #chatInputRef [(ngModel)]="chatInput" (keyup.enter)="sendMessage()" placeholder="Ej: matar 51...">
             <button (click)="sendMessage()">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <svg aria-hidden="true" focusable="false" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="22" y1="2" x2="11" y2="13"></line>
                     <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
                 </svg>
@@ -530,15 +533,15 @@
         </div>
     
     <!-- Profile Management Modal -->
-    <div *ngIf="isProfileModalOpen" [@popIn] class="modal-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.75); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 99999;">
+    <div *ngIf="isProfileModalOpen" [@popIn] class="modal-overlay" role="dialog" aria-modal="true" aria-label="Ventana modal" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.75); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 99999;">
         <div class="modal-content" style="background: #111827; width: 440px; padding: 0; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 25px 50px rgba(0,0,0,0.9); overflow: hidden;">
             <div style="background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%); border-bottom: 1px solid rgba(255,255,255,0.08); padding: 28px 24px 22px 24px; text-align: center; position: relative;">
                 <button (click)="closeProfileModal()" style="position: absolute; top: 14px; right: 14px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #94a3b8; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px;">✕</button>
                 <!-- Hidden file input for photo upload -->
                 <input type="file" #photoInput (change)="onPhotoSelected($event)" accept="image/png, image/jpeg, image/jpg, image/webp" style="display: none;">
                 
-                <div (click)="photoInput.click()" title="Haz clic para cambiar tu foto de perfil" style="width: 76px; height: 76px; background: linear-gradient(135deg, #1e293b, #0f172a); border: 2px solid rgba(56, 189, 248, 0.4); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px auto; font-size: 28px; font-weight: 700; color: #38bdf8; box-shadow: 0 8px 24px rgba(0,0,0,0.5); position: relative; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-                    <img *ngIf="profilePhotoUrl" [src]="profilePhotoUrl" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">
+                <div (click)="photoInput.click()" role="button" tabindex="0" (keydown.enter)="photoInput.click()" (keydown.space)="photoInput.click(); $event.preventDefault()" title="Haz clic para cambiar tu foto de perfil" style="width: 76px; height: 76px; background: linear-gradient(135deg, #1e293b, #0f172a); border: 2px solid rgba(56, 189, 248, 0.4); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px auto; font-size: 28px; font-weight: 700; color: #38bdf8; box-shadow: 0 8px 24px rgba(0,0,0,0.5); position: relative; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                    <img alt="Foto de perfil de {{ currentUser }}" *ngIf="profilePhotoUrl" [src]="profilePhotoUrl" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">
                     <span *ngIf="!profilePhotoUrl">{{ currentUserInitials }}</span>
                     <div style="position: absolute; bottom: 0; right: 0; background: #0f172a; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border: 1.5px solid rgba(255,255,255,0.2); font-size: 11px;">📷</div>
                 </div>
@@ -552,6 +555,13 @@
                     </button>
                 </div>
 
+                <div *ngIf="photoChanged && profilePhotoUrl" style="background: rgba(0,229,255,0.08); border: 1px solid rgba(0,229,255,0.25); border-radius: 8px; padding: 10px; margin-bottom: 12px; text-align: left;">
+                    <label style="display: flex; gap: 8px; align-items: flex-start; font-size: 11.5px; color: #e2e8f0; cursor: pointer;">
+                        <input type="checkbox" [(ngModel)]="photoRightsConfirmed" style="margin-top: 2px;">
+                        <span>Declaro que soy titular o cuento con la debida licencia/autorización para usar esta fotografía como avatar.</span>
+                    </label>
+                </div>
+
                 <h3 style="margin: 0; color: #ffffff; font-size: 19px; font-weight: 600; letter-spacing: 0.5px;">{{ currentUser }}</h3>
                 <span style="margin-top: 6px; display: inline-block; background: rgba(56, 189, 248, 0.1); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.25); font-size: 11.5px; padding: 2px 10px; border-radius: 12px; font-weight: 500;">Administrador de Sistema</span>
             </div>
@@ -559,8 +569,8 @@
             <div style="padding: 26px; display: flex; flex-direction: column; gap: 18px;">
                 <div>
                     <h4 style="margin: 0 0 10px 0; color: #e2e8f0; font-size: 13.5px; font-weight: 600; display: flex; align-items: center; gap: 8px;">🔒 Cambiar Contraseña</h4>
-                    <input type="password" [(ngModel)]="profileForm.oldPassword" class="form-input-sm" style="width: 100%; box-sizing: border-box; margin-bottom: 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 9px 12px; border-radius: 8px;" placeholder="Contraseña actual">
-                    <input type="password" [(ngModel)]="profileForm.newPassword" class="form-input-sm" style="width: 100%; box-sizing: border-box; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 9px 12px; border-radius: 8px;" placeholder="Nueva contraseña">
+                    <input aria-label="Contraseña actual" type="password" [(ngModel)]="profileForm.oldPassword" class="form-input-sm" style="width: 100%; box-sizing: border-box; margin-bottom: 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 9px 12px; border-radius: 8px;" placeholder="Contraseña actual">
+                    <input aria-label="Nueva contraseña" type="password" [(ngModel)]="profileForm.newPassword" class="form-input-sm" style="width: 100%; box-sizing: border-box; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 9px 12px; border-radius: 8px;" placeholder="Nueva contraseña">
                 </div>
                 
                 <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 0;">
@@ -581,11 +591,32 @@
                 <button (click)="saveProfileChanges()" [disabled]="isSavingProfile" style="width: 100%; border-radius: 8px; margin-top: 6px; background: linear-gradient(135deg, #0284c7, #0369a1); border: 1px solid rgba(56, 189, 248, 0.3); color: white; font-weight: 600; font-size: 13.5px; padding: 11px; cursor: pointer; box-shadow: 0 4px 14px rgba(2, 132, 199, 0.25); transition: all 0.2s;">
                     {{ isSavingProfile ? 'Guardando...' : 'Guardar Cambios' }}
                 </button>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 6px 0 0 0;">
+
+                <!-- Sección Privacidad y Derechos de Datos (Ley 1581) -->
+                <div>
+                    <h4 style="margin: 0 0 8px 0; color: #e2e8f0; font-size: 13.5px; font-weight: 600; display: flex; align-items: center; gap: 8px;">🛡️ Privacidad y Mis Datos</h4>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);">
+                            <span style="font-size: 12px; color: var(--text-secondary);">Recibir correos informativos</span>
+                            <button type="button" (click)="toggleEmailOptOut()" style="background: transparent; border: 1px solid rgba(255,255,255,0.2); color: white; padding: 4px 10px; border-radius: 6px; font-size: 11.5px; cursor: pointer;">
+                                {{ emailOptOut ? '❌ Desactivados (Darme de alta)' : '✅ Activos (Darme de baja)' }}
+                            </button>
+                        </div>
+                        <button type="button" (click)="downloadMyData()" style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: #38bdf8; padding: 8px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; text-align: left; display: flex; align-items: center; gap: 8px;">
+                            <span>📥</span> <span>Descargar copia de mis datos personales (JSON)</span>
+                        </button>
+                        <button type="button" (click)="openDeleteAccount()" style="width: 100%; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #f87171; padding: 8px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; text-align: left; display: flex; align-items: center; gap: 8px;">
+                            <span>🗑️</span> <span>Eliminar definitivamente mi cuenta y mis datos</span>
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
     <!-- User Management Modal -->
-    <div *ngIf="isUserModalOpen" [@popIn] class="modal-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 1000;">
+    <div *ngIf="isUserModalOpen" [@popIn] class="modal-overlay" role="dialog" aria-modal="true" aria-label="Gestión y Directorio de Usuarios" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 1000;">
         <div class="modal-content" style="background: var(--bg-card); width: 680px; max-width: 95vw; padding: 28px; border-radius: 16px; border: 1px solid var(--border-subtle); box-shadow: 0 25px 50px rgba(0,0,0,0.8); max-height: 90vh; display: flex; flex-direction: column;">
             
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
@@ -683,18 +714,18 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                     <div>
                         <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Nombre de Usuario *</label>
-                        <input type="text" [(ngModel)]="newUser.username" class="form-input-sm" style="margin-top: 5px; width: 100%; box-sizing: border-box;" placeholder="Ej: jperalta">
+                        <input aria-label="Ej: jperalta" type="text" [(ngModel)]="newUser.username" class="form-input-sm" style="margin-top: 5px; width: 100%; box-sizing: border-box;" placeholder="Ej: jperalta">
                     </div>
                     <div>
                         <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Nombre Completo</label>
-                        <input type="text" [(ngModel)]="newUser.full_name" class="form-input-sm" style="margin-top: 5px; width: 100%; box-sizing: border-box;" placeholder="Ej: Juan Peralta">
+                        <input aria-label="Ej: Juan Peralta" type="text" [(ngModel)]="newUser.full_name" class="form-input-sm" style="margin-top: 5px; width: 100%; box-sizing: border-box;" placeholder="Ej: Juan Peralta">
                     </div>
                 </div>
 
                 <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 12px;">
                     <div>
                         <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Correo Electrónico (Para Invitación) *</label>
-                        <input type="email" [(ngModel)]="newUser.email" class="form-input-sm" style="margin-top: 5px; width: 100%; box-sizing: border-box;" placeholder="usuario@arus.com.co">
+                        <input aria-label="usuario@arus.com.co" type="email" [(ngModel)]="newUser.email" class="form-input-sm" style="margin-top: 5px; width: 100%; box-sizing: border-box;" placeholder="usuario@arus.com.co">
                         <span style="font-size: 11px; color: var(--text-muted); margin-top: 3px; display: block;">Se enviará invitación con credenciales a este correo.</span>
                     </div>
                     <div>
@@ -714,7 +745,14 @@
                             🎲 Generar Aleatoria Segura
                         </button>
                     </div>
-                    <input type="text" [(ngModel)]="newUser.password" class="form-input-sm" style="margin-top: 5px; width: 100%; box-sizing: border-box; font-family: var(--font-mono);" placeholder="Ingresa contraseña o genera una segura">
+                    <input aria-label="Ingresa contraseña o genera una segura" type="text" [(ngModel)]="newUser.password" class="form-input-sm" style="margin-top: 5px; width: 100%; box-sizing: border-box; font-family: var(--font-mono);" placeholder="Ingresa contraseña o genera una segura">
+                </div>
+
+                <div *ngIf="newUser.email" style="background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); border-radius: 8px; padding: 10px;">
+                    <label style="display: flex; gap: 8px; align-items: flex-start; font-size: 11.5px; color: #e2e8f0; cursor: pointer;">
+                        <input type="checkbox" [(ngModel)]="newUserConsent" style="margin-top: 2px;">
+                        <span>Confirmo que cuento con la debida <strong>autorización previa del titular</strong> para registrar su correo y tratar sus datos en DataCheck Pro conforme a la Ley 1581 de 2012.</span>
+                    </label>
                 </div>
 
                 <div style="display: flex; gap: 10px; margin-top: 10px;">
@@ -730,7 +768,7 @@
     </div>
 
     <!-- Contract Creation Modal -->
-    <div *ngIf="isContractModalOpen" [@popIn] class="modal-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 1000;">
+    <div *ngIf="isContractModalOpen" [@popIn] class="modal-overlay" role="dialog" aria-modal="true" aria-label="Ventana modal" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 1000;">
         <div class="modal-content" style="background: var(--bg-card); width: 460px; padding: 28px; border-radius: 16px; border: 1px solid var(--border-subtle); box-shadow: 0 25px 50px rgba(0,0,0,0.8);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h3 style="font-size: 17px; font-weight: 600; color: white; display: flex; align-items: center; gap: 8px;">
@@ -746,7 +784,7 @@
             <div style="display: grid; gap: 15px;">
                 <div>
                     <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 500;">Nombre del Contrato</label>
-                    <input type="text" [(ngModel)]="newContractName" (keyup.enter)="submitContract()" class="form-input-sm" style="margin-top: 6px; width: 100%; box-sizing: border-box;" placeholder="Ej: Banco Santander, Retail Colombia, etc.">
+                    <input aria-label="Ej: Banco Santander, Retail Colombia, etc." type="text" [(ngModel)]="newContractName" (keyup.enter)="submitContract()" class="form-input-sm" style="margin-top: 6px; width: 100%; box-sizing: border-box;" placeholder="Ej: Banco Santander, Retail Colombia, etc.">
                 </div>
                 <div style="display: flex; gap: 10px; margin-top: 10px;">
                     <button (click)="closeContractModal()" style="flex: 1; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: var(--text-secondary); border-radius: 8px; cursor: pointer; font-size: 13px;">
@@ -761,7 +799,7 @@
     </div>
 
     <!-- Instance Creation Modal (Multi-Engine) -->
-    <div *ngIf="isInstanceModalOpen" [@popIn] class="modal-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.65); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 1000;">
+    <div *ngIf="isInstanceModalOpen" [@popIn] class="modal-overlay" role="dialog" aria-modal="true" aria-label="Ventana modal" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.65); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 1000;">
         <div class="modal-content" style="background: var(--bg-card); width: 540px; padding: 28px; border-radius: 16px; border: 1px solid var(--border-subtle); box-shadow: 0 25px 50px rgba(0,0,0,0.8); max-height: 90vh; overflow-y: auto;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
                 <h3 style="font-size: 17px; font-weight: 600; color: white; display: flex; align-items: center; gap: 8px;">
@@ -792,14 +830,14 @@
                     </div>
                     <div>
                         <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Nombre de Instancia</label>
-                        <input type="text" [(ngModel)]="newInstance.name" class="form-input-sm" style="margin-top: 5px; width: 100%; box-sizing: border-box;" placeholder="Ej: PROD-SQL-01">
+                        <input aria-label="Ej: PROD-SQL-01" type="text" [(ngModel)]="newInstance.name" class="form-input-sm" style="margin-top: 5px; width: 100%; box-sizing: border-box;" placeholder="Ej: PROD-SQL-01">
                     </div>
                 </div>
 
                 <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 12px;">
                     <div>
                         <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Servidor / Host / IP</label>
-                        <input type="text" [(ngModel)]="newInstance.host" class="form-input-sm" style="margin-top: 5px; width: 100%; box-sizing: border-box;" placeholder="localhost o IP">
+                        <input aria-label="localhost o IP" type="text" [(ngModel)]="newInstance.host" class="form-input-sm" style="margin-top: 5px; width: 100%; box-sizing: border-box;" placeholder="localhost o IP">
                     </div>
                     <div>
                         <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Puerto</label>
@@ -809,7 +847,7 @@
 
                 <div>
                     <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Base de Datos Inicial</label>
-                    <input type="text" [(ngModel)]="newInstance.database" class="form-input-sm" style="margin-top: 5px; width: 100%; box-sizing: border-box;" placeholder="master o postgres o nombre BD">
+                    <input aria-label="master o postgres o nombre BD" type="text" [(ngModel)]="newInstance.database" class="form-input-sm" style="margin-top: 5px; width: 100%; box-sizing: border-box;" placeholder="master o postgres o nombre BD">
                 </div>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
@@ -843,7 +881,7 @@
     </div>
 
     <!-- Audit Logs Modal -->
-    <div *ngIf="isAuditModalOpen" [@popIn] class="modal-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 1000;">
+    <div *ngIf="isAuditModalOpen" [@popIn] class="modal-overlay" role="dialog" aria-modal="true" aria-label="Ventana modal" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 1000;">
         <div class="modal-content" style="background: var(--bg-card); width: 880px; max-width: 95vw; padding: 28px; border-radius: 16px; border: 1px solid var(--border-subtle); box-shadow: 0 25px 50px rgba(0,0,0,0.8); max-height: 85vh; display: flex; flex-direction: column;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                 <div>
@@ -921,7 +959,7 @@
     </div>
 
     <!-- Edit Contract Modal -->
-    <div *ngIf="isEditContractModalOpen" [@popIn] class="modal-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 1000;">
+    <div *ngIf="isEditContractModalOpen" [@popIn] class="modal-overlay" role="dialog" aria-modal="true" aria-label="Ventana modal" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 1000;">
         <div class="modal-content" style="background: var(--bg-card); width: 460px; padding: 28px; border-radius: 16px; border: 1px solid var(--border-subtle); box-shadow: 0 25px 50px rgba(0,0,0,0.8);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h3 style="font-size: 17px; font-weight: 600; color: white; display: flex; align-items: center; gap: 8px; margin: 0;">
@@ -937,7 +975,7 @@
             <div style="display: grid; gap: 15px;">
                 <div>
                     <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 500;">Nombre del Contrato</label>
-                    <input type="text" [(ngModel)]="editingContractName" (keyup.enter)="submitUpdateContract()" class="form-input-sm" style="margin-top: 6px; width: 100%; box-sizing: border-box;" placeholder="Ej: Nuevo Nombre Contrato">
+                    <input aria-label="Ej: Nuevo Nombre Contrato" type="text" [(ngModel)]="editingContractName" (keyup.enter)="submitUpdateContract()" class="form-input-sm" style="margin-top: 6px; width: 100%; box-sizing: border-box;" placeholder="Ej: Nuevo Nombre Contrato">
                 </div>
                 <div style="display: flex; gap: 10px; margin-top: 10px;">
                     <button (click)="closeEditContractModal()" style="flex: 1; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: var(--text-secondary); border-radius: 8px; cursor: pointer; font-size: 13px;">
@@ -952,7 +990,7 @@
     </div>
 
     <!-- Change Password Modal for Admin -->
-    <div *ngIf="isChangePasswordModalOpen" [@popIn] class="modal-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 100010;">
+    <div *ngIf="isChangePasswordModalOpen" [@popIn] class="modal-overlay" role="dialog" aria-modal="true" aria-label="Ventana modal" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 100010;">
         <div class="modal-content" style="background: var(--bg-card); width: 440px; padding: 26px; border-radius: 16px; border: 1px solid var(--border-subtle); box-shadow: 0 25px 50px rgba(0,0,0,0.8);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                 <h3 style="font-size: 17px; font-weight: 600; color: white; display: flex; align-items: center; gap: 8px; margin: 0;">
@@ -969,7 +1007,7 @@
             <div style="display: grid; gap: 14px;">
                 <div>
                     <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Nueva Contraseña (mínimo 8 caracteres)</label>
-                    <input type="password" [(ngModel)]="newPasswordForUser" (keyup.enter)="submitChangePassword()" class="form-input-sm" style="margin-top: 6px; width: 100%; box-sizing: border-box;" placeholder="Ingresa la nueva contraseña">
+                    <input aria-label="Ingresa la nueva contraseña" type="password" [(ngModel)]="newPasswordForUser" (keyup.enter)="submitChangePassword()" class="form-input-sm" style="margin-top: 6px; width: 100%; box-sizing: border-box;" placeholder="Ingresa la nueva contraseña">
                 </div>
 
                 <div style="display: flex; gap: 10px; margin-top: 6px;">
@@ -985,7 +1023,7 @@
     </div>
 
     <!-- Edit User Modal -->
-    <div *ngIf="isEditUserModalOpen" [@popIn] class="modal-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 100010;">
+    <div *ngIf="isEditUserModalOpen" [@popIn] class="modal-overlay" role="dialog" aria-modal="true" aria-label="Ventana modal" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 100010;">
         <div class="modal-content" style="background: var(--bg-card); width: 480px; padding: 26px; border-radius: 16px; border: 1px solid var(--border-subtle); box-shadow: 0 25px 50px rgba(0,0,0,0.8);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                 <h3 style="font-size: 17px; font-weight: 600; color: white; display: flex; align-items: center; gap: 8px; margin: 0;">
@@ -1002,12 +1040,12 @@
             <div style="display: grid; gap: 14px;">
                 <div>
                     <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Nombre Completo</label>
-                    <input type="text" [(ngModel)]="editingUserForm.full_name" class="form-input-sm" style="margin-top: 6px; width: 100%; box-sizing: border-box;" placeholder="Ej: Juan Pérez">
+                    <input aria-label="Ej: Juan Pérez" type="text" [(ngModel)]="editingUserForm.full_name" class="form-input-sm" style="margin-top: 6px; width: 100%; box-sizing: border-box;" placeholder="Ej: Juan Pérez">
                 </div>
 
                 <div>
                     <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Correo Electrónico</label>
-                    <input type="email" [(ngModel)]="editingUserForm.email" class="form-input-sm" style="margin-top: 6px; width: 100%; box-sizing: border-box;" placeholder="usuario@arus.com.co">
+                    <input aria-label="usuario@arus.com.co" type="email" [(ngModel)]="editingUserForm.email" class="form-input-sm" style="margin-top: 6px; width: 100%; box-sizing: border-box;" placeholder="usuario@arus.com.co">
                 </div>
 
                 <div>
@@ -1038,7 +1076,7 @@
                 <div class="gear-ring-outer"></div>
                 <div class="gear-ring-inner"></div>
                 <div class="gear-pulse-core">
-                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#00e5ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg aria-hidden="true" focusable="false" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#00e5ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="3"></circle>
                         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                     </svg>
@@ -1109,11 +1147,11 @@
     </div>
 
     <!-- About Project Modal (Antigravity IDE / DataCheck Pro Exact Style) -->
-    <div *ngIf="isAboutModalOpen" [@popIn] class="modal-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 100000;">
+    <div *ngIf="isAboutModalOpen" [@popIn] class="modal-overlay" role="dialog" aria-modal="true" aria-label="DataCheck Pro" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 100000;">
         <div class="about-modal-box">
             <div class="about-modal-header">
                 <div class="about-info-icon">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#007acc" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg aria-hidden="true" focusable="false" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#007acc" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="10"></circle>
                         <line x1="12" y1="16" x2="12" y2="12"></line>
                         <line x1="12" y1="8" x2="12.01" y2="8"></line>
@@ -1171,7 +1209,7 @@
     </div>
 
     <!-- Admin Maintenance Configuration Modal (Full lockdown vs Granular buttons) -->
-    <div *ngIf="isMaintenanceConfigModalOpen" [@popIn] class="modal-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.75); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 100000;">
+    <div *ngIf="isMaintenanceConfigModalOpen" [@popIn] class="modal-overlay" role="dialog" aria-modal="true" aria-label="Gestor de Mantenimiento DBA" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.75); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 100000;">
         <div class="about-modal-box" style="max-width: 620px; width: 92%; max-height: 88vh; display: flex; flex-direction: column;">
             <div class="about-modal-header" style="border-bottom: 1px solid rgba(255,255,255,0.08);">
                 <div class="about-info-icon" style="background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.35);">
@@ -1200,7 +1238,7 @@
                 <div>
                     <label style="font-size: 11.5px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Alcance del Mantenimiento</label>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px;">
-                        <div (click)="isGlobalMaintenanceOption = true" [style.border-color]="isGlobalMaintenanceOption ? 'var(--cyan)' : 'rgba(255,255,255,0.1)'" [style.background]="isGlobalMaintenanceOption ? 'rgba(0, 229, 255, 0.08)' : 'rgba(255,255,255,0.02)'" style="border: 1px solid; border-radius: 8px; padding: 12px; cursor: pointer; transition: all 0.2s;">
+                        <div (click)="isGlobalMaintenanceOption = true" role="button" tabindex="0" (keydown.enter)="isGlobalMaintenanceOption = true" (keydown.space)="isGlobalMaintenanceOption = true; $event.preventDefault()" [style.border-color]="isGlobalMaintenanceOption ? 'var(--cyan)' : 'rgba(255,255,255,0.1)'" [style.background]="isGlobalMaintenanceOption ? 'rgba(0, 229, 255, 0.08)' : 'rgba(255,255,255,0.02)'" style="border: 1px solid; border-radius: 8px; padding: 12px; cursor: pointer; transition: all 0.2s;">
                             <div style="font-weight: 600; font-size: 13px; color: white; display: flex; align-items: center; gap: 6px;">
                                 <span>🛑 Bloqueo Total</span>
                             </div>
@@ -1208,7 +1246,7 @@
                                 Bloquea toda la plataforma. Todos los no-admins ven la pantalla completa de mantenimiento con temporizador.
                             </p>
                         </div>
-                        <div (click)="isGlobalMaintenanceOption = false" [style.border-color]="!isGlobalMaintenanceOption ? '#f59e0b' : 'rgba(255,255,255,0.1)'" [style.background]="!isGlobalMaintenanceOption ? 'rgba(245, 158, 11, 0.08)' : 'rgba(255,255,255,0.02)'" style="border: 1px solid; border-radius: 8px; padding: 12px; cursor: pointer; transition: all 0.2s;">
+                        <div (click)="isGlobalMaintenanceOption = false" role="button" tabindex="0" (keydown.enter)="isGlobalMaintenanceOption = false" (keydown.space)="isGlobalMaintenanceOption = false; $event.preventDefault()" [style.border-color]="!isGlobalMaintenanceOption ? '#f59e0b' : 'rgba(255,255,255,0.1)'" [style.background]="!isGlobalMaintenanceOption ? 'rgba(245, 158, 11, 0.08)' : 'rgba(255,255,255,0.02)'" style="border: 1px solid; border-radius: 8px; padding: 12px; cursor: pointer; transition: all 0.2s;">
                             <div style="font-weight: 600; font-size: 13px; color: white; display: flex; align-items: center; gap: 6px;">
                                 <span>⚙️ Modular / Específico</span>
                             </div>
@@ -1239,12 +1277,12 @@
                 <!-- Title & Subtitle Inputs -->
                 <div style="display: flex; flex-direction: column; gap: 6px;">
                     <label style="font-size: 11.5px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">Título del Aviso</label>
-                    <input type="text" [(ngModel)]="maintenanceTitle" placeholder="Ajustes del Sistema en Progreso" class="form-input-sm" style="width: 100%; box-sizing: border-box;">
+                    <input aria-label="Ajustes del Sistema en Progreso" type="text" [(ngModel)]="maintenanceTitle" placeholder="Ajustes del Sistema en Progreso" class="form-input-sm" style="width: 100%; box-sizing: border-box;">
                 </div>
 
                 <div style="display: flex; flex-direction: column; gap: 6px;">
                     <label style="font-size: 11.5px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">Descripción o Motivo</label>
-                    <textarea [(ngModel)]="maintenanceSubtitle" rows="2" placeholder="Optimizando motores de bases de datos, reindexando..." class="form-input-sm" style="width: 100%; height: auto; resize: none; box-sizing: border-box;"></textarea>
+                    <textarea aria-label="Optimizando motores de bases de datos, reindexando..." [(ngModel)]="maintenanceSubtitle" rows="2" placeholder="Optimizando motores de bases de datos, reindexando..." class="form-input-sm" style="width: 100%; height: auto; resize: none; box-sizing: border-box;"></textarea>
                 </div>
             </div>
 
@@ -1259,6 +1297,93 @@
                         {{ isSavingMaintenanceConfig ? 'Guardando...' : (isServerMaintenanceActive ? 'Actualizar Ajustes' : 'Activar Mantenimiento') }}
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feedback Modal -->
+    <div *ngIf="isFeedbackModalOpen" [@popIn] class="modal-overlay" role="dialog" aria-modal="true" aria-label="Enviar Feedback" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 100020;">
+        <div class="modal-content" style="background: var(--bg-card); width: 480px; max-width: 95vw; padding: 26px; border-radius: 16px; border: 1px solid var(--border-subtle); box-shadow: 0 25px 50px rgba(0,0,0,0.8);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 style="font-size: 17px; font-weight: 600; color: white; display: flex; align-items: center; gap: 8px; margin: 0;">
+                    <span>⭐</span> <span>Tu Opinión de DataCheck Pro</span>
+                </h3>
+                <button (click)="isFeedbackModalOpen = false" style="background: transparent; border: none; color: var(--text-secondary); font-size: 18px; cursor: pointer;">✕</button>
+            </div>
+            <p style="font-size: 12.5px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.5;">
+                Tus sugerencias nos ayudan a mejorar las capacidades de telemetría y el asistente DBA.
+            </p>
+            <div style="display: flex; flex-direction: column; gap: 14px;">
+                <div>
+                    <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Calificación General</label>
+                    <div style="display: flex; gap: 8px; margin-top: 6px;">
+                        <button *ngFor="let s of [1,2,3,4,5]" type="button" (click)="feedbackRating = s" [style.background]="feedbackRating >= s ? 'rgba(234, 179, 8, 0.2)' : 'rgba(255,255,255,0.05)'" [style.border-color]="feedbackRating >= s ? '#eab308' : 'var(--border-subtle)'" style="border: 1px solid; border-radius: 8px; padding: 6px 12px; font-size: 16px; cursor: pointer; color: white;">
+                            ★ {{ s }}
+                        </button>
+                    </div>
+                </div>
+                <div>
+                    <label style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Comentario o Sugerencia (Opcional)</label>
+                    <textarea [(ngModel)]="feedbackComment" rows="3" maxlength="2000" placeholder="¿Qué podemos mejorar o qué nueva función DBA necesitas?" class="form-input-sm" style="width: 100%; box-sizing: border-box; height: auto; resize: none; margin-top: 6px;"></textarea>
+                </div>
+                <div style="background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); border-radius: 8px; padding: 10px;">
+                    <label style="display: flex; gap: 8px; align-items: flex-start; font-size: 11.5px; color: #e2e8f0; cursor: pointer;">
+                        <input type="checkbox" [(ngModel)]="feedbackConsent" style="margin-top: 2px;">
+                        <span>Autorizo el tratamiento de mis comentarios para la mejora técnica de la plataforma según la <a routerLink="/legal/privacidad" target="_blank" style="color: var(--cyan);">Política de Privacidad</a>.</span>
+                    </label>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 4px;">
+                    <button type="button" (click)="isFeedbackModalOpen = false" style="flex: 1; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: var(--text-secondary); border-radius: 8px; cursor: pointer;">Cancelar</button>
+                    <button type="button" (click)="submitFeedback()" class="send-btn" style="flex: 1.5; border-radius: 8px; color: black; font-weight: 600; font-size: 13px; padding: 10px;">Enviar Calificación</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Legal Consent Modal (Mandatory on First Login or Legal Version Update) -->
+    <div *ngIf="isConsentModalOpen" [@popIn] class="modal-overlay" role="dialog" aria-modal="true" aria-label="Autorización de Tratamiento de Datos" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); backdrop-filter: blur(12px); display: flex; align-items: center; justify-content: center; z-index: 100030;">
+        <div class="modal-content" style="background: var(--bg-card); width: 560px; max-width: 95vw; padding: 28px; border-radius: 16px; border: 1px solid rgba(0,229,255,0.3); box-shadow: 0 25px 60px rgba(0,0,0,0.9);">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px;">
+                <span style="font-size: 26px;">📜</span>
+                <div>
+                    <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: white;">Autorización y Documentos Legales</h3>
+                    <span style="font-size: 12px; color: var(--cyan);">Ley 1581 de 2012 (Habeas Data Colombia)</span>
+                </div>
+            </div>
+            <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 16px;">
+                Para continuar utilizando <strong>DataCheck Pro</strong>, te solicitamos autorizar de forma previa, expresa e informada el tratamiento de tus datos personales mínimos (cuenta, roles y registro de auditoría técnica).
+            </p>
+            <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); border-radius: 10px; padding: 14px; margin-bottom: 18px; font-size: 12.5px; color: #cbd5e1; display: grid; gap: 8px;">
+                <div>📄 <a routerLink="/legal/privacidad" target="_blank" style="color: var(--cyan); text-decoration: underline;">Política de Privacidad y Tratamiento de Datos</a></div>
+                <div>📋 <a routerLink="/legal/terminos" target="_blank" style="color: var(--cyan); text-decoration: underline;">Términos y Condiciones del Servicio</a></div>
+                <div>🍪 <a routerLink="/legal/cookies" target="_blank" style="color: var(--cyan); text-decoration: underline;">Política de Cookies y Almacenamiento Local</a></div>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button type="button" (click)="declineLegalDocuments()" style="flex: 1; padding: 11px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: var(--text-secondary); border-radius: 8px; cursor: pointer; font-size: 13px;">Rechazar y Salir</button>
+                <button type="button" (click)="acceptLegalDocuments()" class="send-btn" style="flex: 2; border-radius: 8px; color: black; font-weight: 600; font-size: 13px; padding: 11px;">Acepto y Autorizo el Tratamiento</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Account Confirmation Modal -->
+    <div *ngIf="isDeleteAccountOpen" [@popIn] class="modal-overlay" role="dialog" aria-modal="true" aria-label="Eliminar Cuenta Definitivamente" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); backdrop-filter: blur(12px); display: flex; align-items: center; justify-content: center; z-index: 100040;">
+        <div class="modal-content" style="background: #181111; width: 460px; max-width: 95vw; padding: 26px; border-radius: 16px; border: 1px solid rgba(239,68,68,0.4); box-shadow: 0 25px 60px rgba(0,0,0,0.9);">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+                <span style="font-size: 26px;">⚠️</span>
+                <h3 style="margin: 0; font-size: 17px; font-weight: 600; color: #f87171;">Eliminar Cuenta y Datos Personales</h3>
+            </div>
+            <p style="font-size: 13px; color: #e2e8f0; line-height: 1.5; margin-bottom: 12px;">
+                Esta acción es <strong>irreversible</strong> (Derecho de Supresión - Ley 1581 de 2012). Se eliminarán tu usuario, historial de consultas IA, tickets/feedback y foto. Los registros de auditoría operativa se conservarán de manera <strong>anonimizada</strong> para cumplir con la integridad de seguridad.
+            </p>
+            <div style="margin-bottom: 16px;">
+                <label style="font-size: 11.5px; color: var(--text-muted); text-transform: uppercase;">Confirma con tu contraseña actual *</label>
+                <input type="password" [(ngModel)]="deleteAccountPassword" placeholder="Tu contraseña" class="form-input-sm" style="width: 100%; box-sizing: border-box; margin-top: 6px;">
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button type="button" (click)="cancelDeleteAccount()" [disabled]="isDeletingAccount" style="flex: 1; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: var(--text-secondary); border-radius: 8px; cursor: pointer;">Cancelar</button>
+                <button type="button" (click)="confirmDeleteAccount()" [disabled]="isDeletingAccount" style="flex: 1.5; padding: 10px; background: #dc2626; border: none; color: white; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                    {{ isDeletingAccount ? 'Eliminando...' : 'Sí, Eliminar Mis Datos' }}
+                </button>
             </div>
         </div>
     </div>

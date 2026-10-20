@@ -1,5 +1,5 @@
 """User Model."""
-from sqlalchemy import Column, Integer, String, Boolean, Text
+from sqlalchemy import Column, Integer, String, Boolean, Text, DateTime
 from sqlalchemy.orm import relationship
 from app.db.base import Base
 from app.core.config import settings
@@ -19,6 +19,12 @@ class User(Base):
     role = Column(String(20), default="Monitor")
     mfa_enabled = Column(Boolean, default=False)
     profile_photo = Column(Text, nullable=True)
+
+    # Privacy: evidence of authorization (Ley 1581) and email opt-out
+    consent_version = Column(String(20), nullable=True)
+    consent_accepted_at = Column(DateTime(timezone=True), nullable=True)
+    email_opt_out = Column(Boolean, default=False, nullable=False, server_default="false")
+    email_opt_out_at = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     feedback = relationship("Feedback", back_populates="user", cascade="all, delete-orphan")

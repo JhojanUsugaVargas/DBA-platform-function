@@ -346,13 +346,29 @@ class QATestSuite(unittest.TestCase):
     def test_api_03c_user_password_and_email_invitation(self):
         """QA-API-03c: Verify user creation with custom password and admin password reset."""
         admin_user = {"id": 1, "username": "admin", "role": "Administrador"}
+
+        # Sin autorización del titular, no se puede registrar un correo
+        from fastapi import HTTPException
+        with self.assertRaises(HTTPException) as ctx:
+            admin_create_user(
+                user_req=UserCreateRequest(
+                    username="qa_no_consent",
+                    email="qa_noconsent@example.com",
+                    role="Monitor"
+                ),
+                db=self.db,
+                _=admin_user
+            )
+        self.assertEqual(ctx.exception.status_code, 400)
+
         create_res = admin_create_user(
             user_req=UserCreateRequest(
                 username="qa_invited_user",
                 full_name="Invited QA",
                 email="qa_invited@example.com",
                 password="CustomPass2026!",
-                role="Monitor"
+                role="Monitor",
+                consent_confirmed=True
             ),
             db=self.db,
             _=admin_user

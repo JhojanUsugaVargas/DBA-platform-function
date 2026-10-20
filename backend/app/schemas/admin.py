@@ -9,6 +9,7 @@ class UserCreateRequest(BaseModel):
     full_name: Optional[str] = None
     email: Optional[str] = None
     role: str = "Monitor"
+    consent_confirmed: bool = False  # el admin confirma autorización del titular para registrar su correo
 
 
 class UserUpdateRequest(BaseModel):

@@ -521,7 +521,7 @@
       outline: none;
 
       &::placeholder {
-        color: #52525b;
+        color: #94a3b8;
       }
     }
 
@@ -1185,7 +1185,7 @@
       }
 
       &::placeholder {
-        color: #52525b;
+        color: #94a3b8;
       }
 
       option {
@@ -1280,7 +1280,7 @@
     }
 
     &::placeholder {
-      color: #52525b;
+      color: #94a3b8;
     }
 
     option {
@@ -1325,7 +1325,7 @@
     color: #ededed;
     line-height: 1.5;
 
-    &.empty { color: #52525b; font-style: italic; }
+    &.empty { color: #94a3b8; font-style: italic; }
   }
 }
 

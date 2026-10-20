@@ -59,7 +59,7 @@ export class ApiService {
     return this.http.get<any[]>(`${this.baseUrl}/admin/users/all`);
   }
 
-  createUser(userData: { username: string; role: string; email?: string; password?: string; full_name?: string }): Observable<any> {
+  createUser(userData: { username: string; role: string; email?: string; password?: string; full_name?: string; consent_confirmed?: boolean }): Observable<any> {
     return this.http.post<any>(`${this.baseUrl}/admin/users`, userData);
   }
 
@@ -101,11 +101,13 @@ export class ApiService {
   }
 
   // Feedback y Calificaciones
-  submitFeedback(rating: number, comment: string): Observable<any> {
-    return this.http.post<any>(
-      `${this.baseUrl}/feedback/submit?rating=${rating}&comment=${encodeURIComponent(comment)}`,
-      {}
-    );
+  submitFeedback(rating: number, comment: string, consentConfirmed: boolean): Observable<any> {
+    // El comentario es texto libre: va en el cuerpo, nunca en la URL
+    return this.http.post<any>(`${this.baseUrl}/feedback/submit`, {
+      rating,
+      comment,
+      consent_confirmed: consentConfirmed
+    });
   }
 
   // Perfil de Usuario
@@ -117,8 +119,25 @@ export class ApiService {
     return this.http.put<any>(`${this.baseUrl}/auth/profile/password`, data);
   }
 
-  updatePhoto(data: { photo_base64: string }): Observable<any> {
+  updatePhoto(data: { photo_base64: string; rights_confirmed?: boolean }): Observable<any> {
     return this.http.put<any>(`${this.baseUrl}/auth/profile/photo`, data);
+  }
+
+  // Derechos del titular (Ley 1581 de 2012)
+  acceptLegalDocuments(): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/auth/profile/consent`, {});
+  }
+
+  exportMyData(): Observable<any> {
+    return this.http.get<any>(`${this.baseUrl}/auth/profile/export`);
+  }
+
+  deleteMyAccount(password: string): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/auth/profile/delete-account`, { password });
+  }
+
+  setEmailOptOut(optOut: boolean): Observable<any> {
+    return this.http.put<any>(`${this.baseUrl}/auth/profile/email-preferences?opt_out=${optOut}`, {});
   }
 
   toggleMfa(data: { mfa_enabled: boolean }): Observable<any> {

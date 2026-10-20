@@ -13,7 +13,8 @@ def send_user_invitation(
     username: str,
     full_name: str,
     password: str,
-    role: str
+    role: str,
+    unsubscribe_url: Optional[str] = None
 ) -> Dict[str, Any]:
     """Sends a professional onboarding and credential invitation email to a newly created user."""
     smtp_host = os.getenv("SMTP_HOST", "")
@@ -21,6 +22,12 @@ def send_user_invitation(
     smtp_user = os.getenv("SMTP_USER", "")
     smtp_password = os.getenv("SMTP_PASSWORD", "")
     smtp_from = os.getenv("SMTP_FROM", "soporte@datacheck.local")
+    access_url = settings.FRONTEND_URL
+    unsubscribe_html = (
+        f'<br><a href="{unsubscribe_url}" style="color:#67e8f9;">Darme de baja de estos correos</a>'
+        if unsubscribe_url else ""
+    )
+    unsubscribe_plain = f"\nPara darte de baja de estos correos: {unsubscribe_url}\n" if unsubscribe_url else ""
 
     subject = f"🔐 Invitación y Credenciales de Acceso - DataCheck Pro ({role})"
     
@@ -40,7 +47,7 @@ def send_user_invitation(
         .cred-label {{ color: #94a3b8; font-weight: 500; }}
         .cred-val {{ color: #ffffff; font-family: monospace; font-weight: bold; }}
         .btn {{ display: inline-block; background: #00e5ff; color: #000000; padding: 10px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; margin-top: 15px; text-align: center; }}
-        .footer {{ text-align: center; font-size: 11px; color: #64748b; margin-top: 24px; }}
+        .footer {{ text-align: center; font-size: 12px; color: #94a3b8; margin-top: 24px; }}
       </style>
     </head>
     <body>
@@ -61,11 +68,12 @@ def send_user_invitation(
         <p style="font-size: 13px; color: #cbd5e1;">Por motivos de seguridad, te sugerimos cambiar tu contraseña inmediatamente después de tu primer inicio de sesión.</p>
 
         <div style="text-align: center;">
-          <a href="http://localhost:4200" class="btn">Acceder a DataCheck Pro</a>
+          <a href="{access_url}" class="btn">Acceder a DataCheck Pro</a>
         </div>
 
         <div class="footer">
-          Este correo fue generado automáticamente por DataCheck Pro. Por favor no respondas a este mensaje.
+          Este correo fue generado automáticamente por DataCheck Pro. Por favor no respondas a este mensaje.<br>
+          Tratamos tus datos conforme a nuestra política de privacidad: {access_url}/legal/privacidad{unsubscribe_html}
         </div>
       </div>
     </body>
@@ -78,7 +86,9 @@ def send_user_invitation(
         f"Tus credenciales de acceso son:\n"
         f"- Usuario: {username}\n"
         f"- Contraseña inicial: {password}\n\n"
-        f"Enlace de acceso: http://localhost:4200\n"
+        f"Enlace de acceso: {access_url}\n"
+        f"Política de privacidad: {access_url}/legal/privacidad\n"
+        f"{unsubscribe_plain}"
     )
 
     if smtp_host:
@@ -87,6 +97,9 @@ def send_user_invitation(
             msg["Subject"] = subject
             msg["From"] = smtp_from
             msg["To"] = to_email
+            if unsubscribe_url:
+                msg["List-Unsubscribe"] = f"<{unsubscribe_url}>"
+                msg["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
             msg.attach(MIMEText(plain_content, "plain"))
             msg.attach(MIMEText(html_content, "html"))
 

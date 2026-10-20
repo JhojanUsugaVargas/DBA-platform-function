@@ -1,8 +1,8 @@
-﻿<div class="login-wrapper" [class.lamp-on]="isLampOn">
+<div class="login-wrapper" [class.lamp-on]="isLampOn">
     <!-- STEP 1: LAMP LOGIN -->
     <div class="login-step" *ngIf="step === 'login'">
-        <div class="lamp-container">
-            <svg viewBox="0 0 200 400" xmlns="http://www.w3.org/2000/svg">
+        <div class="lamp-container" aria-hidden="true">
+            <svg viewBox="0 0 200 400" xmlns="http://www.w3.org/2000/svg" focusable="false">
                 <defs>
                     <linearGradient id="beam-grad" x1="0%" y1="0%" x2="0%" y2="100%">
                         <stop offset="0%" stop-color="rgba(255, 224, 102, 0.4)" />
@@ -17,59 +17,70 @@
         </div>
 
         <div class="form-card login-card">
-            <h2>Welcome</h2>
-            
-            <div class="error-banner" *ngIf="errorMessage">
+            <h1 class="login-title">Welcome</h1>
+
+            <div class="error-banner" *ngIf="errorMessage" role="alert">
                 {{ errorMessage }}
             </div>
 
             <form (ngSubmit)="onSubmit()" class="premium-form">
                 <div class="input-group">
-                    <label>Username</label>
-                    <input type="text" name="username" [(ngModel)]="username" required placeholder="Enter name" autocomplete="off" (focus)="!isLampOn && toggleLamp()">
+                    <label for="login-username">Username</label>
+                    <input id="login-username" type="text" name="username" [(ngModel)]="username" required placeholder="Enter name" autocomplete="username" (focus)="!isLampOn && toggleLamp()">
                 </div>
-                
+
                 <div class="input-group">
-                    <label>Password</label>
-                    <input type="password" name="password" [(ngModel)]="password" required placeholder="Enter Password" (focus)="!isLampOn && toggleLamp()">
+                    <label for="login-password">Password</label>
+                    <input id="login-password" type="password" name="password" [(ngModel)]="password" required placeholder="Enter Password" autocomplete="current-password" (focus)="!isLampOn && toggleLamp()">
                 </div>
 
                 <button type="submit" class="gold-btn" [class.loading]="isLoading" [disabled]="isLoading">
                     <span>{{ isLoading ? 'Checking...' : 'Sign In' }}</span>
-                    <div class="btn-loader" *ngIf="isLoading"></div>
+                    <div class="btn-loader" *ngIf="isLoading" aria-hidden="true"></div>
                 </button>
+
+                <p class="legal-notice">
+                    Para ingresar necesitamos tu usuario y contraseña. Consulta cómo tratamos tus datos en la
+                    <a routerLink="/legal/privacidad">Política de Privacidad</a> y los
+                    <a routerLink="/legal/terminos">Términos y Condiciones</a>.
+                    La aceptación formal se solicita una vez dentro de la plataforma.
+                </p>
             </form>
         </div>
+        <app-legal-links class="login-legal"></app-legal-links>
     </div>
 
     <!-- OTP STEP -->
     <div class="otp-step" *ngIf="step === 'otp'">
         <div class="otp-card">
             <div class="otp-header">
-                <h2>Verify your number</h2>
+                <h1 class="login-title">Verify your identity</h1>
                 <p>Enter the 4-digit code we sent to {{ username }}</p>
             </div>
 
-            <div class="timer-display" [class.expired]="timeLeft <= 0">
-                <span class="clock-icon">⏱</span> {{ timerDisplay }}
+            <div class="timer-display" [class.expired]="timeLeft <= 0" role="timer" aria-live="off">
+                <span class="clock-icon" aria-hidden="true">⏱</span>
+                <span class="sr-only">Tiempo restante: </span>{{ timerDisplay }}
             </div>
 
-            <div class="error-banner" *ngIf="errorMessage">
+            <div class="error-banner" *ngIf="errorMessage" role="alert">
                 {{ errorMessage }}
             </div>
 
-            <div class="otp-inputs">
+            <div class="otp-inputs" role="group" aria-label="Código de verificación de 4 dígitos">
                 <input *ngFor="let i of [0,1,2,3]" 
                        type="text" 
+                       inputmode="numeric"
                        maxlength="1" 
                        [id]="'otp-' + i"
                        [name]="'otp-' + i"
+                       [attr.aria-label]="'Dígito ' + (i + 1) + ' de 4'"
                        [value]="otpCode[i]"
                        [disabled]="timeLeft <= 0 || isLoading"
                        (input)="onOtpInput($event, i)"
                        (keyup)="onOtpKeyup($event, i)"
                        (keydown)="onOtpKeydown($event, i)"
-                       autocomplete="off">
+                       autocomplete="one-time-code">
             </div>
 
             <div class="resend-section" *ngIf="timeLeft <= 0">

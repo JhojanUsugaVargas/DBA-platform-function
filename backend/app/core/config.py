@@ -58,6 +58,14 @@ class Settings:
     ADMIN_DEFAULT_USERNAME: str = os.getenv("ADMIN_DEFAULT_USERNAME", "admin")
     ADMIN_DEFAULT_PASSWORD: str = os.getenv("ADMIN_DEFAULT_PASSWORD", "Admin123!")
 
+    # Privacy / legal (Ley 1581 de 2012 - Habeas Data)
+    DATA_CONTROLLER_NAME: str = os.getenv("DATA_CONTROLLER_NAME", "Equipo DBA - DataCheck Pro")
+    PRIVACY_CONTACT_EMAIL: str = os.getenv("PRIVACY_CONTACT_EMAIL", "privacidad@datacheck.local")
+    LEGAL_VERSION: str = os.getenv("LEGAL_VERSION", "2026-10-20")
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:4200")
+    PUBLIC_API_URL: str = os.getenv("PUBLIC_API_URL", "http://localhost:8005")
+    UNSUBSCRIBE_TOKEN_EXPIRE_DAYS: int = int(os.getenv("UNSUBSCRIBE_TOKEN_EXPIRE_DAYS", "365"))
+
     # CORS
     _cors_raw: str = os.getenv(
         "CORS_ORIGINS",

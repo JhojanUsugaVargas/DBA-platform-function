@@ -44,9 +44,32 @@ def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta]
 def decode_access_token(token: str) -> Dict[str, Any]:
     """Decode and validate a JWT access token."""
     try:
-        return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        # Unsubscribe tokens must never be accepted as session tokens
+        if payload.get("purpose"):
+            return {}
+        return payload
     except jwt.PyJWTError:
         return {}
+
+
+def create_unsubscribe_token(username: str) -> str:
+    """Signed, purpose-bound token used in the email opt-out link."""
+    return create_access_token(
+        {"sub": username, "purpose": "unsubscribe"},
+        expires_delta=timedelta(days=settings.UNSUBSCRIBE_TOKEN_EXPIRE_DAYS),
+    )
+
+
+def decode_unsubscribe_token(token: str) -> Optional[str]:
+    """Return username if token is a valid unsubscribe token, else None."""
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+    except jwt.PyJWTError:
+        return None
+    if payload.get("purpose") != "unsubscribe":
+        return None
+    return payload.get("sub")
 
 
 def encrypt_data(data: str) -> str:

@@ -20,11 +20,16 @@ class UpdatePasswordRequest(BaseModel):
 
 
 class UpdatePhotoRequest(BaseModel):
-    photo_base64: str
+    photo_base64: str = Field(max_length=2_800_000, description="Imagen data URL (máx. ~2 MB)")
+    rights_confirmed: bool = Field(default=False, description="El usuario declara tener derechos sobre la imagen")
 
 
 class ToggleMFARequest(BaseModel):
     mfa_enabled: bool
+
+
+class DeleteAccountRequest(BaseModel):
+    password: str = Field(min_length=1)
 
 
 class UserProfileResponse(BaseModel):
@@ -33,3 +38,6 @@ class UserProfileResponse(BaseModel):
     role: str
     mfa_enabled: bool
     profile_photo: Optional[str] = None
+    email_opt_out: bool = False
+    consent_required: bool = False
+    legal_version: Optional[str] = None

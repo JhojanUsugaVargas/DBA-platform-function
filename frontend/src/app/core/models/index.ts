@@ -16,6 +16,9 @@ export interface UserProfile {
   role: string;
   mfa_enabled: boolean;
   profile_photo?: string | null;
+  email_opt_out?: boolean;
+  consent_required?: boolean;
+  legal_version?: string;
 }
 
 export interface UserItem {

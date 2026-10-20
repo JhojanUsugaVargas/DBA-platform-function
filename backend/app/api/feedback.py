@@ -13,16 +13,15 @@ router = APIRouter()
 
 @router.post("/submit", summary="Submit user feedback")
 def submit_feedback(
-    rating: int,
-    comment: Optional[str] = None,
+    req: FeedbackSubmitRequest,
     db: Session = Depends(get_db),
     user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Save feedback rating (1-5) and comment."""
-    if rating < 1 or rating > 5:
+    """Save feedback rating (1-5) and comment. Free text travels in the body, never in the URL."""
+    if not req.consent_confirmed:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="La calificación debe estar entre 1 y 5"
+            detail="Debes autorizar el tratamiento de tu comentario para enviarlo."
         )
-    feedback_repo.add_feedback(db, user["username"], rating, comment)
+    feedback_repo.add_feedback(db, user["username"], req.rating, req.comment)
     return {"success": True, "message": "Feedback recibido exitosamente"}

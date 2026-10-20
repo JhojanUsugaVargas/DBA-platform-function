@@ -1,15 +1,18 @@
 import { Component, AfterViewInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
+import { LegalLinksComponent } from '../legal/legal-links.component';
+import { gsap as gsapLib } from 'gsap';
 
-declare var gsap: any;
+// Paquete local (npm): ya no se descarga desde un CDN de terceros
+const gsap: any = gsapLib;
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink, LegalLinksComponent],
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.css']
 })

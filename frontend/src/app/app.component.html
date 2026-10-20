@@ -1,1 +1,5 @@
-<router-outlet></router-outlet>
+<a class="skip-link" href="#main-content" (click)="skipToMain($event)">Saltar al contenido principal</a>
+<div id="main-content" tabindex="-1" style="display: contents;">
+  <router-outlet></router-outlet>
+</div>
+<app-cookie-banner></app-cookie-banner>

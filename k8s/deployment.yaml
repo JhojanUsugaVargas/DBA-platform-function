@@ -41,6 +41,36 @@ spec:
                 configMapKeyRef:
                   name: datacheck-config
                   key: CORS_ORIGINS
+            - name: DATA_CONTROLLER_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: datacheck-config
+                  key: DATA_CONTROLLER_NAME
+                  optional: true
+            - name: PRIVACY_CONTACT_EMAIL
+              valueFrom:
+                configMapKeyRef:
+                  name: datacheck-config
+                  key: PRIVACY_CONTACT_EMAIL
+                  optional: true
+            - name: LEGAL_VERSION
+              valueFrom:
+                configMapKeyRef:
+                  name: datacheck-config
+                  key: LEGAL_VERSION
+                  optional: true
+            - name: FRONTEND_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: datacheck-config
+                  key: FRONTEND_URL
+                  optional: true
+            - name: PUBLIC_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: datacheck-config
+                  key: PUBLIC_API_URL
+                  optional: true
             - name: SECRET_KEY
               valueFrom:
                 secretKeyRef:

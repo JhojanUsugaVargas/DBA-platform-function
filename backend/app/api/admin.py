@@ -4,10 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user, role_required
-from app.core.security import get_password_hash
+from app.core.security import get_password_hash, create_unsubscribe_token
+from app.core.config import settings
 from app.db.session import get_db
 from app.repositories import user_repo, contract_repo, audit_repo, feedback_repo
-from app.services import email_service, maintenance_service
+from app.services import email_service, maintenance_service, privacy_service
 from app.services.remote_db_service import test_remote_connection
 from app.schemas.admin import (
     UserCreateRequest,
@@ -45,6 +46,13 @@ def create_user(
             detail="El nombre de usuario ya se encuentra registrado."
         )
 
+    has_email = bool(user_req.email and user_req.email.strip())
+    if has_email and not user_req.consent_confirmed:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Debes confirmar que cuentas con la autorización del titular para registrar sus datos personales."
+        )
+
     raw_password = user_req.password if user_req.password and user_req.password.strip() else "ChangeMe123!"
     user = user_repo.create_user(
         db=db,
@@ -56,13 +64,14 @@ def create_user(
     )
 
     invitation = None
-    if user_req.email and user_req.email.strip():
+    if has_email:
         invitation = email_service.send_user_invitation(
             to_email=user_req.email.strip(),
             username=user.username,
             full_name=user.full_name or user.username,
             password=raw_password,
-            role=user.role
+            role=user.role,
+            unsubscribe_url=f"{settings.PUBLIC_API_URL}/auth/unsubscribe?token={create_unsubscribe_token(user.username)}"
         )
 
     audit_repo.log_action(
@@ -70,7 +79,7 @@ def create_user(
         username=admin_username,
         action="CREATE_USER",
         status="SUCCESS",
-        details=f"Usuario '{user.username}' creado con rol {user.role} y email '{user.email or 'N/A'}'."
+        details=f"Usuario '{user.username}' creado con rol {user.role}. Correo registrado: {'sí' if has_email else 'no'}; autorización del titular confirmada: {'sí' if user_req.consent_confirmed else 'n/a'}."
     )
 
     return {
@@ -144,7 +153,7 @@ def update_user_endpoint(
         username=admin_username,
         action="UPDATE_USER",
         status="SUCCESS",
-        details=f"Usuario '{user.username}' actualizado: rol='{updated_user.role}', email='{updated_user.email or 'N/A'}'."
+        details=f"Usuario '{user.username}' actualizado: rol='{updated_user.role}', correo registrado: {'sí' if updated_user.email else 'no'}."
     )
 
     return {
@@ -189,7 +198,7 @@ def delete_user(
         )
 
     deleted_username = user.username
-    user_repo.delete_user(db, user)
+    privacy_service.erase_user(db, user)
     audit_repo.log_action(
         db=db,
         username=admin_username,

@@ -1,6 +1,6 @@
-# 🚀 DataCheck Platform
+# 🚀 DataCheck Platform (v2.6.0)
 
-Plataforma empresarial de monitoreo, telemetría y gestión inteligente de bases de datos (SQL Server / PostgreSQL) con asistente DBA potenciado por IA (Google Gemini).
+Plataforma empresarial de monitoreo, telemetría y gestión inteligente de bases de datos (SQL Server / PostgreSQL) con asistente DBA potenciado por IA (Google Gemini), cumplimiento de privacidad (Ley 1581 de 2012 / Habeas Data) y estándares de accesibilidad WCAG 2.1 AA.
 
 ---
 
@@ -166,7 +166,9 @@ flowchart TD
 | **`Maintenance Config Modal`** | Modal Admin | Panel para configurar ventanas de mantenimiento (Bloqueo Total vs. Modular) y elegir qué botones restringir. |
 | **`User Management Modal`** | Modal Admin | Administración completa de usuarios (creación, asignación de roles, invitaciones automáticas por correo y restablecimiento de contraseña). |
 | **`Audit Logs Modal`** | Modal Admin | Visor de pistas de auditoría inmutables para monitorear acciones críticas realizadas en el sistema. |
-| **`About Project Modal`** | Modal Informativo | Ficha técnica del sistema (DataCheck Pro v2.5.5, arquitectura, versiones del stack y autoría). |
+| **`About Project Modal`** | Modal Informativo | Ficha técnica del sistema (DataCheck Pro v2.6.0, arquitectura, versiones del stack y autoría). |
+| **`LegalPageComponent`** | Página Pública | Portal legal accesible en `/legal/:slug` (`privacidad`, `terminos`, `cookies`, `licencias`) con soporte para impresión y lectura accesible. |
+| **`CookieBannerComponent`** | Diálogo Global | Centro de consentimiento de cookies conforme a privacidad; sin patrones oscuros, opciones equitativas de aceptación/rechazo y configuración técnica/analítica. |
 
 ## 🛠️ Requisitos Previos
 
@@ -195,6 +197,12 @@ Configura tus credenciales y parámetros clave:
 | `GEMINI_API_KEY` | Llave de API para el asistente Google Gemini | *Tu API Key de Google AI* |
 | `SMTP_USER` / `SMTP_PASSWORD` | Correo y contraseña de aplicación para envío de OTP | *Credenciales SMTP* |
 | `CORS_ORIGINS` | Orígenes HTTP permitidos para el Frontend | `http://localhost:4200,http://localhost:8005` |
+| `DATA_CONTROLLER_NAME` | Razón social responsable del tratamiento de datos | `DataCheck Platform` |
+| `PRIVACY_CONTACT_EMAIL` | Correo oficial de atención al titular (Habeas Data) | `privacidad@datacheck.internal` |
+| `LEGAL_VERSION` | Versión vigente de términos y política de privacidad | `2026.1` |
+| `FRONTEND_URL` | URL pública base del Frontend (enlaces en correos) | `http://localhost:4200` |
+| `PUBLIC_API_URL` | URL pública base del Backend (enlaces de baja RFC 8058) | `http://localhost:8000` |
+| `UNSUBSCRIBE_TOKEN_EXPIRE_DAYS` | Vigencia en días del enlace de desuscripción de correo | `180` |
 
 ---
 
@@ -240,11 +248,18 @@ npx ng serve --port 4200
 
 ## 🧪 Pruebas Automatizadas
 
-El backend incluye una suite de pruebas unitarias sobre hashing de contraseñas, validación JWT, cifrado Fernet y repositorios:
+El backend incluye suites de pruebas unitarias sobre hashing de contraseñas, validación JWT, cifrado Fernet, cumplimiento de privacidad y repositorios:
 
 ```bash
 cd backend
+# Pruebas de API y seguridad
 python -m unittest tests/test_api.py
+
+# Pruebas integrales de Privacidad, Consentimiento, Desuscripción y Eliminación (Habeas Data)
+python -m unittest tests/test_privacy.py
+
+# Suite completa QA
+python -m unittest tests/test_full_qa.py
 ```
 
 Para ejecutar pruebas de humo sobre la API en ejecución:
@@ -288,9 +303,24 @@ docker compose up -d --build
 
 ---
 
-## 🔒 Buenas Prácticas de Seguridad Implementadas
+## 🔒 Buenas Prácticas de Seguridad y Cumplimiento Implementadas
 
 1. **Gestión de Secretos**: Ninguna credencial, clave de correo o contraseña sensible se encuentra en el código fuente. Todas se cargan mediante variables de entorno (`.env` o Kubernetes Secrets).
 2. **Cifrado Simétrico**: Las cadenas de conexión de bases de datos remotas se almacenan cifradas con `Fernet` de forma unificada.
 3. **Autenticación y Autorización**: Contraseñas hasheadas con `bcrypt`, sesiones controladas con tokens `JWT (HS256)` y doble factor de autenticación (`OTP`).
 4. **Protección de Red**: CORS configurado explícitamente y validación de endpoints protegidos mediante `Depends(get_current_user)` y `role_required`.
+5. **Privacidad y Habeas Data (Ley 1581 de 2012)**:
+   - Trazabilidad y versionamiento del consentimiento del titular (`consent_version`, `consent_accepted_at`).
+   - Derecho de Portabilidad: Endpoint `/auth/profile/export` con descarga completa en JSON de perfil, chats y auditoría.
+   - Derecho de Supresión: Endpoint `/auth/profile/delete-account` con borrado en cascada seguro y anonimización de eventos de auditoría (`usuario-eliminado-<hash>`).
+   - Minimización de datos: Eliminación de PII (nombres de usuario) en consultas externas hacia IA (Gemini) y eliminación de correos en texto plano de logs de auditoría.
+6. **Desuscripción de Correos (RFC 8058)**: Cabeceras `List-Unsubscribe` y `List-Unsubscribe-Post` en correos transaccionales con tokens HMAC firmados de un solo clic.
+7. **Accesibilidad Web (WCAG 2.1 AA)**:
+   - Navegación completa por teclado con indicador `:focus-visible` de alto contraste y tecla `Escape` para cerrar modales.
+   - Enlace directo al contenido principal (*skip link*).
+   - Ratios de contraste optimizados sobre tema dark cyber (texto secundario `#8f8f9a`, bordes y botones).
+   - Textos alternativos descriptivos en gráficos (`role="img"`, `aria-label`), avatar y componentes interactivos.
+8. **Soberanía y Seguridad de Activos**:
+   - Sin dependencias de CDNs externas (`Chart.js`, `GSAP` y tipografía `@fontsource/inter` empaquetadas localmente).
+   - Content-Security-Policy (CSP) estricto en Nginx (`script-src 'self'`, `font-src 'self'`, `style-src 'self' 'unsafe-inline'`).
+   - Declaración de titularidad de derechos en carga de fotos de perfil.

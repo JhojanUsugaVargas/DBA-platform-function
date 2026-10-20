@@ -8,3 +8,8 @@ data:
   APP_NAME: "DataCheck API"
   DB_SCHEMA: "datacheck"
   CORS_ORIGINS: "http://localhost:4200,http://127.0.0.1:4200,http://localhost:8005,http://127.0.0.1:8005"
+  DATA_CONTROLLER_NAME: "DataCheck Platform"
+  PRIVACY_CONTACT_EMAIL: "privacidad@datacheck.internal"
+  LEGAL_VERSION: "2026.1"
+  FRONTEND_URL: "http://localhost:4200"
+  PUBLIC_API_URL: "http://localhost:8000"

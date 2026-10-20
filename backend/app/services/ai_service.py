@@ -131,7 +131,7 @@ def get_ai_response(texto: str, username: str) -> Dict[str, Any]:
         try:
             prompt = (
                 f"Eres DataCheck AI, un asistente DBA senior especializado en SQL Server y PostgreSQL. "
-                f"El usuario '{username}' te pregunta: '{texto}'. "
+                f"Un usuario de la plataforma te pregunta: '{texto}'. "
                 f"Responde de forma concisa, práctica y profesional en español utilizando formato Markdown claro."
             )
             response = ai_model.generate_content(prompt)

@@ -1,18 +1,22 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { trigger, transition, style, animate, query, stagger } from '@angular/animations';
 import { ApiService } from '../../core/services/api.service';
 import { DbaService } from '../../core/services/dba.service';
 import { ChatService } from '../../core/services/chat.service';
+import { LegalLinksComponent } from '../legal/legal-links.component';
+import { Chart as ChartJS, registerables } from 'chart.js';
 
-declare var Chart: any;
+// Chart.js desde el paquete local (npm): ya no se descarga de un CDN de terceros
+ChartJS.register(...registerables);
+const Chart: any = ChartJS;
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink, LegalLinksComponent],
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.scss'],
   animations: [
@@ -92,6 +96,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     password: '',
     role: 'Monitor'
   };
+  /** El administrador confirma que tiene autorización del titular para registrar su correo. Nunca premarcada. */
+  newUserConsent: boolean = false;
   isChangePasswordModalOpen: boolean = false;
   targetUserForPassword: any = null;
   newPasswordForUser: string = '';
@@ -116,6 +122,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
   };
   profilePhotoUrl: string | null | undefined = null;
   isSavingProfile: boolean = false;
+
+  // Privacidad y derechos del titular
+  photoChanged: boolean = false;
+  photoRightsConfirmed: boolean = false;
+  emailOptOut: boolean = false;
+  isConsentModalOpen: boolean = false;
+  isDeleteAccountOpen: boolean = false;
+  deleteAccountPassword: string = '';
+  isDeletingAccount: boolean = false;
+  feedbackConsent: boolean = false;
 
   isCreatingUser = false;
 
@@ -495,6 +511,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
       next: (res) => {
         this.profileForm.mfaEnabled = res.mfa_enabled;
         this.profilePhotoUrl = res.profile_photo;
+        this.photoChanged = false;
+        this.emailOptOut = !!res.email_opt_out;
+        this.isConsentModalOpen = !!res.consent_required;
         if (res.role) {
           this.currentUserRole = res.role;
           this.isAdmin = (res.role === 'Administrador') || (this.currentUser === 'admin');
@@ -515,6 +534,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
       const reader = new FileReader();
       reader.onload = (e: any) => {
         this.profilePhotoUrl = e.target.result;
+        this.photoChanged = true;
+        this.photoRightsConfirmed = false;
       };
       reader.readAsDataURL(file);
     }
@@ -522,6 +543,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   removePhoto() {
     this.profilePhotoUrl = '';
+    this.photoChanged = true;
   }
 
   saveProfileChanges() {
@@ -533,11 +555,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
       error: (err) => console.error("Error saving MFA", err)
     });
 
-    // Save Photo if changed or removed
-    if (this.profilePhotoUrl !== null && this.profilePhotoUrl !== undefined) {
-      this.apiService.updatePhoto({ photo_base64: this.profilePhotoUrl }).subscribe({
-        next: () => {},
-        error: (err) => console.error("Error saving photo", err)
+    // Save Photo only if the user changed or removed it (a new photo requires declaring image rights)
+    if (this.photoChanged && this.profilePhotoUrl !== null && this.profilePhotoUrl !== undefined) {
+      if (this.profilePhotoUrl && !this.photoRightsConfirmed) {
+        alert('Para guardar la foto debes declarar que tienes derechos para usar la imagen.');
+        this.isSavingProfile = false;
+        return;
+      }
+      this.apiService.updatePhoto({ photo_base64: this.profilePhotoUrl, rights_confirmed: this.photoRightsConfirmed }).subscribe({
+        next: () => { this.photoChanged = false; },
+        error: (err) => alert(err.error?.detail || 'Error al guardar la foto')
       });
     }
 
@@ -944,19 +971,24 @@ Date: 2026-10-12`;
   }
 
   openDocs() {
-    window.open('https://github.com/arus-com-co/datacheck-docs', '_blank');
+    window.open('https://github.com/arus-com-co/datacheck-docs', '_blank', 'noopener,noreferrer');
   }
 
   openFeedbackModal() {
     this.feedbackRating = 5;
     this.feedbackComment = '';
+    this.feedbackConsent = false;
     this.isFeedbackModalOpen = true;
   }
 
   submitFeedback() {
-    this.apiService.submitFeedback(this.feedbackRating, this.feedbackComment).subscribe({
-      next: (res) => {
-        alert("¡Nueva función! Para forzar cancelación de un proceso, simplemente pídeselo a DataCheck AI en el chat de la esquina inferior derecha. Ej: 'matar 55'");
+    if (this.feedbackComment.trim() && !this.feedbackConsent) {
+      alert('Para enviar tu comentario debes autorizar su tratamiento marcando la casilla.');
+      return;
+    }
+    this.apiService.submitFeedback(this.feedbackRating, this.feedbackComment, true).subscribe({
+      next: () => {
+        alert('Gracias, recibimos tu comentario.');
         this.isFeedbackModalOpen = false;
       },
       error: (err) => {
@@ -976,7 +1008,8 @@ Date: 2026-10-12`;
       full_name: this.newUser.full_name.trim() || this.newUser.username.trim(),
       email: this.newUser.email.trim() || undefined,
       password: this.newUser.password.trim() || undefined,
-      role: this.newUser.role
+      role: this.newUser.role,
+      consent_confirmed: this.newUserConsent
     };
 
     this.apiService.createUser(payload).subscribe({
@@ -1246,6 +1279,96 @@ Date: 2026-10-12`;
   logout() {
     localStorage.removeItem('access_token');
     this.router.navigate(['/login']);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Privacidad: autorización, descarga y eliminación de datos (Ley 1581 de 2012)
+  // ---------------------------------------------------------------------------
+  acceptLegalDocuments() {
+    this.apiService.acceptLegalDocuments().subscribe({
+      next: () => { this.isConsentModalOpen = false; },
+      error: (err) => alert(err.error?.detail || 'No se pudo registrar tu autorización. Inténtalo de nuevo.')
+    });
+  }
+
+  declineLegalDocuments() {
+    this.logout();
+  }
+
+  downloadMyData() {
+    this.apiService.exportMyData().subscribe({
+      next: (data) => {
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `datacheck-mis-datos-${this.currentUser}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      },
+      error: (err) => alert(err.error?.detail || 'No se pudieron descargar tus datos.')
+    });
+  }
+
+  toggleEmailOptOut() {
+    const next = !this.emailOptOut;
+    this.apiService.setEmailOptOut(next).subscribe({
+      next: () => { this.emailOptOut = next; },
+      error: (err) => alert(err.error?.detail || 'No se pudo actualizar tu preferencia.')
+    });
+  }
+
+  openDeleteAccount() {
+    this.deleteAccountPassword = '';
+    this.isDeleteAccountOpen = true;
+  }
+
+  cancelDeleteAccount() {
+    this.isDeleteAccountOpen = false;
+    this.deleteAccountPassword = '';
+  }
+
+  confirmDeleteAccount() {
+    if (!this.deleteAccountPassword) {
+      alert('Ingresa tu contraseña para confirmar.');
+      return;
+    }
+    this.isDeletingAccount = true;
+    this.apiService.deleteMyAccount(this.deleteAccountPassword).subscribe({
+      next: (res) => {
+        this.isDeletingAccount = false;
+        alert(res.message || 'Tu cuenta fue eliminada.');
+        this.logout();
+      },
+      error: (err) => {
+        this.isDeletingAccount = false;
+        alert(err.error?.detail || 'No se pudo eliminar la cuenta.');
+      }
+    });
+  }
+
+  /** Teclado: Escape cierra el modal abierto que esté encima (WCAG 2.1.2 / patrón ARIA dialog). */
+  @HostListener('document:keydown.escape')
+  onEscapeKey() {
+    if (this.isConsentModalOpen) { return; } // requiere una decisión explícita
+    const stack: Array<[boolean, () => void]> = [
+      [this.isDeleteAccountOpen, () => this.cancelDeleteAccount()],
+      [this.isChangePasswordModalOpen, () => { this.isChangePasswordModalOpen = false; }],
+      [this.isEditUserModalOpen, () => { this.isEditUserModalOpen = false; }],
+      [this.isEditContractModalOpen, () => { this.isEditContractModalOpen = false; }],
+      [this.isContractModalOpen, () => { this.isContractModalOpen = false; }],
+      [this.isInstanceModalOpen, () => { this.isInstanceModalOpen = false; }],
+      [this.isProfileModalOpen, () => this.closeProfileModal()],
+      [this.isUserModalOpen, () => this.closeUserModal()],
+      [this.isFeedbackModalOpen, () => { this.isFeedbackModalOpen = false; }],
+      [this.isAuditModalOpen, () => { this.isAuditModalOpen = false; }],
+      [this.isMaintenanceConfigModalOpen, () => { this.isMaintenanceConfigModalOpen = false; }],
+      [this.isAboutModalOpen, () => { this.isAboutModalOpen = false; }],
+    ];
+    const top = stack.find(([open]) => open);
+    if (top) { top[1](); }
   }
 
   runAction(actionName: string) {
