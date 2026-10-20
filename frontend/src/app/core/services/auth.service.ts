@@ -88,6 +88,36 @@ export class AuthService {
     this.router.navigate(['/login']);
   }
 
+  getUserRole(): string {
+    const token = this.getToken();
+    if (!token) return 'Monitor';
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.role || 'Monitor';
+    } catch {
+      return 'Monitor';
+    }
+  }
+
+  isAdmin(): boolean {
+    const role = (this.getUserRole() || '').toLowerCase();
+    const user = (this.getStoredUsername() || '').toLowerCase();
+    return role === 'administrador' || role === 'admin' || user === 'admin';
+  }
+
+  isDbaPrincipal(): boolean {
+    const role = (this.getUserRole() || '').toLowerCase();
+    return role === 'dba principal' || role === 'dba';
+  }
+
+  canCancelQueries(): boolean {
+    return this.isAdmin() || this.isDbaPrincipal();
+  }
+
+  canTestInstance(): boolean {
+    return this.isAdmin() || this.isDbaPrincipal();
+  }
+
   getProfile(): Observable<UserProfile> {
     return this.http.get<UserProfile>(`${this.baseUrl}/auth/profile/me`);
   }

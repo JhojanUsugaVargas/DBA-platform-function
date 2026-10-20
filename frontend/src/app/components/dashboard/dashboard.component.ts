@@ -61,7 +61,28 @@ export class DashboardComponent implements OnInit, OnDestroy {
   currentUser: string = 'User';
   currentUserInitials: string = 'U'; 
   currentUserRole: string = 'Monitor';
+  isAdmin: boolean = false;
+  isDbaPrincipal: boolean = false;
   canCancelQueries: boolean = false;
+  canTestInstance: boolean = false;
+  canManageContracts: boolean = false;
+  canManageInstances: boolean = false;
+  canViewAudit: boolean = false;
+  canManageUsers: boolean = false;
+
+  updateRolePermissions(role: string, username: string) {
+    this.currentUserRole = role || 'Monitor';
+    const rLower = (this.currentUserRole || '').trim().toLowerCase();
+    const uLower = (username || '').trim().toLowerCase();
+    this.isAdmin = rLower === 'administrador' || rLower === 'admin' || uLower === 'admin';
+    this.isDbaPrincipal = rLower === 'dba principal' || rLower === 'dba';
+    this.canCancelQueries = this.isAdmin || this.isDbaPrincipal;
+    this.canTestInstance = this.isAdmin || this.isDbaPrincipal;
+    this.canManageContracts = this.isAdmin;
+    this.canManageInstances = this.isAdmin;
+    this.canViewAudit = this.isAdmin;
+    this.canManageUsers = this.isAdmin;
+  }
 
   // Darling Web / PerformanceMonitor Telemetry State & Tabs
   activeTab: string = 'overview';
@@ -189,7 +210,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
   maintenanceTitle: string = 'Ajustes del Sistema en Progreso';
   maintenanceSubtitle: string = 'Optimizando motores de bases de datos, reindexando y aplicando configuraciones DBA...';
   maintenanceProgress: number = 68;
-  isAdmin: boolean = false;
   isServerMaintenanceActive: boolean = false;
   maintenancePollTimer: any = null;
 
@@ -531,9 +551,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.emailOptOut = !!res.email_opt_out;
         this.isConsentModalOpen = !!res.consent_required;
         if (res.role) {
-          this.currentUserRole = res.role;
-          this.isAdmin = (res.role === 'Administrador') || (this.currentUser === 'admin');
-          this.canCancelQueries = this.isAdmin || (res.role === 'DBA Principal');
+          this.updateRolePermissions(res.role, res.username || this.currentUser);
         }
       },
       error: (err) => console.error("Error loading profile", err)
@@ -1057,11 +1075,8 @@ Date: 2026-10-12`;
                 this.currentUser = payload.sub;
                 this.currentUserInitials = this.currentUser.substring(0, 2).toUpperCase();
             }
-            if (payload.role) {
-                this.currentUserRole = payload.role;
-            }
-            this.isAdmin = (this.currentUserRole === 'Administrador') || (payload.role === 'Administrador') || (this.currentUser === 'admin');
-            this.canCancelQueries = this.isAdmin || (this.currentUserRole === 'DBA Principal') || (payload.role === 'DBA Principal');
+            let roleFromToken = payload.role || this.currentUserRole;
+            this.updateRolePermissions(roleFromToken, this.currentUser);
         } catch(e) {}
     }
     if (!localStorage.getItem('access_token')) {

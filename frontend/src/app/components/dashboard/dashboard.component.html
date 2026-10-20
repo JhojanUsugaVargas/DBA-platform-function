@@ -14,7 +14,7 @@
             <div style="display: flex; flex-direction: column; gap: 8px;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <p class="sidebar-label" style="margin: 0; padding: 0;">Contrato</p>
-                    <div style="display: flex; gap: 4px;">
+                    <div style="display: flex; gap: 4px;" *ngIf="canManageContracts">
                         <button class="add-btn-sm" (click)="openContractModal()" title="Nuevo Contrato">+</button>
                         <button class="add-btn-sm" (click)="openEditContractModal()" title="Editar Contrato Seleccionado" style="font-size: 11px;">✏️</button>
                         <button class="add-btn-sm" (click)="confirmDeleteContract()" title="Eliminar Contrato Seleccionado" style="font-size: 11px; color: #ff5252;">🗑️</button>
@@ -27,8 +27,8 @@
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
                     <p class="sidebar-label" style="margin: 0; padding: 0;">Instancia SQL</p>
                     <div style="display: flex; gap: 4px;">
-                        <button class="add-btn-sm" (click)="testCurrentInstance()" *ngIf="selectedInstanceId" title="⚡ Probar conectividad y latencia (Ping)" style="background: rgba(56,189,248,0.15); color: #38bdf8; border: 1px solid rgba(56,189,248,0.3);">⚡</button>
-                        <button class="add-btn-sm" (click)="openInstanceModal()" title="Nueva Instancia">+</button>
+                        <button class="add-btn-sm" (click)="testCurrentInstance()" *ngIf="selectedInstanceId && canTestInstance" title="⚡ Probar conectividad y latencia (Ping)" style="background: rgba(56,189,248,0.15); color: #38bdf8; border: 1px solid rgba(56,189,248,0.3);">⚡</button>
+                        <button class="add-btn-sm" (click)="openInstanceModal()" *ngIf="canManageInstances" title="Nueva Instancia">+</button>
                     </div>
                 </div>
                 <select id="instanceSelector" class="form-input-sm" [(ngModel)]="selectedInstanceId" (change)="onInstanceChange()">
@@ -96,21 +96,20 @@
                         <span class="action-icon">💾</span><span>Estado de Respaldos</span>
                         <span *ngIf="isModuleDisabled('backups')" style="font-size: 9px; background: rgba(245,158,11,0.25); color: #fbbf24; border: 1px solid rgba(245,158,11,0.5); padding: 1px 4px; border-radius: 4px; margin-left: auto;">⚙️ En ajuste</span>
                     </button>
-                    <button class="action-btn" [style.opacity]="!canCancelQueries || (!isAdmin && isModuleDisabled('cancelar')) ? '0.45' : '1'" [style.cursor]="!canCancelQueries || (!isAdmin && isModuleDisabled('cancelar')) ? 'not-allowed' : 'pointer'" (click)="runAction('cancelar')" [title]="!canCancelQueries ? '🔒 Acción restringida a DBA Principal y Administrador' : ((!isAdmin && isModuleDisabled('cancelar')) ? '⚠️ Módulo en mantenimiento' : '')">
+                    <button class="action-btn" *ngIf="canCancelQueries" [style.opacity]="!isAdmin && isModuleDisabled('cancelar') ? '0.45' : '1'" [style.cursor]="!isAdmin && isModuleDisabled('cancelar') ? 'not-allowed' : 'pointer'" (click)="runAction('cancelar')" [title]="(!isAdmin && isModuleDisabled('cancelar')) ? '⚠️ Módulo en mantenimiento' : 'Forzar Cancelación de Proceso'">
                         <span class="action-icon">❌</span><span>Forzar Cancelación</span>
-                        <span *ngIf="!canCancelQueries" style="font-size: 9px; background: rgba(239,68,68,0.25); color: #f87171; border: 1px solid rgba(239,68,68,0.5); padding: 1px 4px; border-radius: 4px; margin-left: auto;">🔒 DBA Pral</span>
-                        <span *ngIf="canCancelQueries && isModuleDisabled('cancelar')" style="font-size: 9px; background: rgba(245,158,11,0.25); color: #fbbf24; border: 1px solid rgba(245,158,11,0.5); padding: 1px 4px; border-radius: 4px; margin-left: auto;">⚙️ En ajuste</span>
+                        <span *ngIf="isModuleDisabled('cancelar')" style="font-size: 9px; background: rgba(245,158,11,0.25); color: #fbbf24; border: 1px solid rgba(245,158,11,0.5); padding: 1px 4px; border-radius: 4px; margin-left: auto;">⚙️ En ajuste</span>
                     </button>
                 </div>
             </div>
             
             <div class="sidebar-section">
-                <p class="sidebar-label">Configuración & Auditoría</p>
+                <p class="sidebar-label">{{ canViewAudit || canManageUsers ? 'Configuración & Auditoría' : 'Soporte y Asistencia' }}</p>
                 <div class="sidebar-actions">
-                    <button class="action-btn" (click)="openAuditModal()">
+                    <button class="action-btn" *ngIf="canViewAudit" (click)="openAuditModal()">
                         <span class="action-icon">📋</span><span>Registro de Auditoría</span>
                     </button>
-                    <button class="action-btn" (click)="openUserModal()">
+                    <button class="action-btn" *ngIf="canManageUsers" (click)="openUserModal()">
                         <span class="action-icon">👥</span><span>Gestión de Usuarios</span>
                     </button>
                     <button class="action-btn" *ngIf="isAdmin" (click)="openIncidentsPortal()" title="Portal Administrativo de Incidentes y Requerimientos">
@@ -132,7 +131,7 @@
                 </div>
                 <div style="display: flex; flex-direction: column;">
                     <span style="font-size: 13px; font-weight: 600; color: var(--text-primary);">{{ currentUser }}</span>
-                    <span style="font-size: 11px; color: var(--text-muted);">Admin</span>
+                    <span style="font-size: 11px; color: var(--cyan); font-weight: 500;">{{ currentUserRole }}</span>
                 </div>
             </div>
             <button class="logout-btn" (click)="logout()">Sign out</button>
