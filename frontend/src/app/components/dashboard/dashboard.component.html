@@ -137,8 +137,16 @@
             </div>
             <button class="logout-btn" (click)="logout()">Sign out</button>
         </div>
-        <div style="padding: 10px 14px; border-top: 1px solid var(--border-subtle); background: var(--bg-secondary);">
-            <app-legal-links></app-legal-links>
+        <div class="sidebar-legal-box">
+            <div class="sidebar-legal-links">
+                <a routerLink="/legal/privacidad">Privacidad</a>
+                <a routerLink="/legal/terminos">Términos</a>
+                <a routerLink="/legal/cookies">Cookies</a>
+                <a routerLink="/legal/licencias">Licencias</a>
+            </div>
+            <button type="button" class="sidebar-cookie-btn" (click)="consent.reopen()" title="Gestionar consentimiento de cookies">
+                🍪 Preferencias de cookies
+            </button>
         </div>
     </aside>
 
@@ -277,19 +285,55 @@
 
             <!-- TAB 1: OVERVIEW 2x2 TIME-SERIES TELEMETRY GRID -->
             <div *ngIf="activeTab === 'overview' && !isLoadingAction" [@fadeSlideUp]>
+                <!-- Toolbar: Date Range Picker & Filters -->
+                <div class="telemetry-toolbar">
+                    <div class="toolbar-left">
+                        <span class="toolbar-label">⏱️ Rango Temporal:</span>
+                        <div class="range-pill-group" role="group" aria-label="Selector de rango temporal">
+                            <button type="button" class="range-pill" [class.active]="selectedTimeRange === '1h'" (click)="setTimeRange('1h')">1h</button>
+                            <button type="button" class="range-pill" [class.active]="selectedTimeRange === '6h'" (click)="setTimeRange('6h')">6h</button>
+                            <button type="button" class="range-pill" [class.active]="selectedTimeRange === '24h'" (click)="setTimeRange('24h')">24h</button>
+                            <button type="button" class="range-pill" [class.active]="selectedTimeRange === '7d'" (click)="setTimeRange('7d')">7d</button>
+                            <button type="button" class="range-pill" [class.active]="selectedTimeRange === '30d'" (click)="setTimeRange('30d')">30d</button>
+                            <button type="button" class="range-pill custom-btn" [class.active]="selectedTimeRange === 'custom'" (click)="setTimeRange('custom')">
+                                📅 Rango Fechas
+                            </button>
+                        </div>
+                        <div *ngIf="showCustomRange" class="custom-range-inputs">
+                            <input type="date" [(ngModel)]="customStartDate" (change)="applyCustomRange()" class="date-picker-sm" aria-label="Fecha de inicio">
+                            <span class="date-sep">a</span>
+                            <input type="date" [(ngModel)]="customEndDate" (change)="applyCustomRange()" class="date-picker-sm" aria-label="Fecha de fin">
+                        </div>
+                    </div>
+
+                    <div class="toolbar-right">
+                        <span class="range-status">
+                            Visualizando: <strong style="color: var(--cyan); text-transform: uppercase;">{{ selectedTimeRange }}</strong>
+                        </span>
+                        <button type="button" class="refresh-pill-btn" (click)="loadTelemetryOverview()" [disabled]="isTelemetryLoading" title="Actualizar datos de telemetría">
+                            <span [class.spin]="isTelemetryLoading">🔄</span> Refrescar
+                        </button>
+                    </div>
+                </div>
+
                 <!-- 2x2 Telemetry Grid (Darling Web / PerformanceMonitor style) -->
                 <div class="telemetry-grid">
-                    <!-- Panel 1: CPU Utilization (24h) -->
+                    <!-- Panel 1: CPU Utilization -->
                     <div class="telemetry-chart-card">
                         <div class="chart-header">
                             <div class="chart-title">
                                 <span class="chart-dot cyan-dot"></span>
-                                <span>Consumo de CPU (Últimas 24 Horas)</span>
+                                <span>Consumo de CPU</span>
                             </div>
-                            <span class="chart-badge">Línea de Base 24h</span>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span class="chart-badge">Línea de Base</span>
+                                <button type="button" class="chart-expand-btn" (click)="openChartZoom('cpu')" title="Abrir más grande" aria-label="Abrir gráfica de CPU en pantalla completa">
+                                    ⛶ Maximizar
+                                </button>
+                            </div>
                         </div>
                         <div class="chart-canvas-wrapper">
-                            <canvas id="telemetryCpuCanvas"></canvas>
+                            <canvas id="telemetryCpuCanvas" role="img" aria-label="Gráfica de consumo de CPU"></canvas>
                         </div>
                     </div>
 
@@ -300,38 +344,53 @@
                                 <span class="chart-dot amber-dot"></span>
                                 <span>Principales Tipos de Espera (Top Wait Stats)</span>
                             </div>
-                            <span class="chart-badge badge-amber">Filtro Benigno</span>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span class="chart-badge badge-amber">Filtro Benigno</span>
+                                <button type="button" class="chart-expand-btn" (click)="openChartZoom('waits')" title="Abrir más grande" aria-label="Abrir gráfica de tipos de espera en pantalla completa">
+                                    ⛶ Maximizar
+                                </button>
+                            </div>
                         </div>
                         <div class="chart-canvas-wrapper">
-                            <canvas id="telemetryWaitsCanvas"></canvas>
+                            <canvas id="telemetryWaitsCanvas" role="img" aria-label="Gráfica de tipos de espera"></canvas>
                         </div>
                     </div>
 
-                    <!-- Panel 3: Blocking & Deadlocks Activity (24h) -->
+                    <!-- Panel 3: Blocking & Deadlocks Activity -->
                     <div class="telemetry-chart-card">
                         <div class="chart-header">
                             <div class="chart-title">
                                 <span class="chart-dot red-dot"></span>
                                 <span>Bloqueos y Deadlocks en el Tiempo</span>
                             </div>
-                            <span class="chart-badge badge-red">Contención de Recursos</span>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span class="chart-badge badge-red">Contención</span>
+                                <button type="button" class="chart-expand-btn" (click)="openChartZoom('blocking')" title="Abrir más grande" aria-label="Abrir gráfica de bloqueos en pantalla completa">
+                                    ⛶ Maximizar
+                                </button>
+                            </div>
                         </div>
                         <div class="chart-canvas-wrapper">
-                            <canvas id="telemetryBlockingCanvas"></canvas>
+                            <canvas id="telemetryBlockingCanvas" role="img" aria-label="Gráfica de bloqueos y contención"></canvas>
                         </div>
                     </div>
 
-                    <!-- Panel 4: Transactions & Batch Requests / Throughput (24h) -->
+                    <!-- Panel 4: Transactions & Batch Requests / Throughput -->
                     <div class="telemetry-chart-card">
                         <div class="chart-header">
                             <div class="chart-title">
                                 <span class="chart-dot green-dot"></span>
                                 <span>Batch Requests & Transacciones / seg</span>
                             </div>
-                            <span class="chart-badge badge-green">Throughput Activo</span>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span class="chart-badge badge-green">Throughput</span>
+                                <button type="button" class="chart-expand-btn" (click)="openChartZoom('throughput')" title="Abrir más grande" aria-label="Abrir gráfica de throughput en pantalla completa">
+                                    ⛶ Maximizar
+                                </button>
+                            </div>
                         </div>
                         <div class="chart-canvas-wrapper">
-                            <canvas id="telemetryThroughputCanvas"></canvas>
+                            <canvas id="telemetryThroughputCanvas" role="img" aria-label="Gráfica de transacciones por segundo"></canvas>
                         </div>
                     </div>
                 </div>
@@ -531,87 +590,138 @@
                 </svg>
             </button>
         </div>
-    
+    </div>
+
     <!-- Profile Management Modal -->
-    <div *ngIf="isProfileModalOpen" [@popIn] class="modal-overlay" role="dialog" aria-modal="true" aria-label="Ventana modal" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.75); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; z-index: 99999;">
-        <div class="modal-content" style="background: #111827; width: 440px; padding: 0; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 25px 50px rgba(0,0,0,0.9); overflow: hidden;">
-            <div style="background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%); border-bottom: 1px solid rgba(255,255,255,0.08); padding: 28px 24px 22px 24px; text-align: center; position: relative;">
-                <button (click)="closeProfileModal()" style="position: absolute; top: 14px; right: 14px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #94a3b8; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px;">✕</button>
-                <!-- Hidden file input for photo upload -->
+    <div *ngIf="isProfileModalOpen" [@popIn] class="modal-overlay" role="dialog" aria-modal="true" aria-label="Perfil y Privacidad" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); backdrop-filter: blur(12px); display: flex; align-items: center; justify-content: center; z-index: 99999; padding: 20px; box-sizing: border-box;">
+        <div class="modal-content profile-modal-card" style="background: #111827; width: 520px; max-width: 95vw; max-height: 90vh; border-radius: 18px; border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 25px 60px rgba(0,0,0,0.95), 0 0 30px rgba(56, 189, 248, 0.1); overflow-y: auto; display: flex; flex-direction: column;">
+            
+            <!-- Modal Header with Avatar -->
+            <div style="background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%); border-bottom: 1px solid rgba(255,255,255,0.08); padding: 24px; text-align: center; position: relative;">
+                <button (click)="closeProfileModal()" title="Cerrar modal" style="position: absolute; top: 14px; right: 14px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #94a3b8; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px;">✕</button>
+                
                 <input type="file" #photoInput (change)="onPhotoSelected($event)" accept="image/png, image/jpeg, image/jpg, image/webp" style="display: none;">
                 
-                <div (click)="photoInput.click()" role="button" tabindex="0" (keydown.enter)="photoInput.click()" (keydown.space)="photoInput.click(); $event.preventDefault()" title="Haz clic para cambiar tu foto de perfil" style="width: 76px; height: 76px; background: linear-gradient(135deg, #1e293b, #0f172a); border: 2px solid rgba(56, 189, 248, 0.4); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px auto; font-size: 28px; font-weight: 700; color: #38bdf8; box-shadow: 0 8px 24px rgba(0,0,0,0.5); position: relative; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                <div (click)="photoInput.click()" role="button" tabindex="0" (keydown.enter)="photoInput.click()" (keydown.space)="photoInput.click(); $event.preventDefault()" title="Haz clic para cambiar tu foto de perfil" style="width: 80px; height: 80px; background: linear-gradient(135deg, #1e293b, #0f172a); border: 2.5px solid rgba(56, 189, 248, 0.5); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px auto; font-size: 28px; font-weight: 700; color: #38bdf8; box-shadow: 0 8px 24px rgba(0,0,0,0.6); position: relative; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
                     <img alt="Foto de perfil de {{ currentUser }}" *ngIf="profilePhotoUrl" [src]="profilePhotoUrl" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">
                     <span *ngIf="!profilePhotoUrl">{{ currentUserInitials }}</span>
-                    <div style="position: absolute; bottom: 0; right: 0; background: #0f172a; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border: 1.5px solid rgba(255,255,255,0.2); font-size: 11px;">📷</div>
+                    <div style="position: absolute; bottom: 0; right: 0; background: #0f172a; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border: 1.5px solid rgba(255,255,255,0.3); font-size: 12px;">📷</div>
                 </div>
                 
-                <div style="display: flex; justify-content: center; gap: 12px; margin-bottom: 8px;">
-                    <button type="button" (click)="photoInput.click()" style="background: transparent; border: none; color: #38bdf8; font-size: 11.5px; cursor: pointer; text-decoration: underline;">
+                <div style="display: flex; justify-content: center; gap: 14px; margin-bottom: 10px;">
+                    <button type="button" (click)="photoInput.click()" style="background: transparent; border: none; color: #38bdf8; font-size: 12px; cursor: pointer; text-decoration: underline;">
                         Cambiar foto
                     </button>
-                    <button type="button" *ngIf="profilePhotoUrl" (click)="removePhoto()" style="background: transparent; border: none; color: #f87171; font-size: 11.5px; cursor: pointer; text-decoration: underline;">
+                    <button type="button" *ngIf="profilePhotoUrl" (click)="removePhoto()" style="background: transparent; border: none; color: #f87171; font-size: 12px; cursor: pointer; text-decoration: underline;">
                         Eliminar foto
                     </button>
                 </div>
 
-                <div *ngIf="photoChanged && profilePhotoUrl" style="background: rgba(0,229,255,0.08); border: 1px solid rgba(0,229,255,0.25); border-radius: 8px; padding: 10px; margin-bottom: 12px; text-align: left;">
+                <div *ngIf="photoChanged && profilePhotoUrl" style="background: rgba(0,229,255,0.08); border: 1px solid rgba(0,229,255,0.25); border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; text-align: left;">
                     <label style="display: flex; gap: 8px; align-items: flex-start; font-size: 11.5px; color: #e2e8f0; cursor: pointer;">
                         <input type="checkbox" [(ngModel)]="photoRightsConfirmed" style="margin-top: 2px;">
                         <span>Declaro que soy titular o cuento con la debida licencia/autorización para usar esta fotografía como avatar.</span>
                     </label>
                 </div>
 
-                <h3 style="margin: 0; color: #ffffff; font-size: 19px; font-weight: 600; letter-spacing: 0.5px;">{{ currentUser }}</h3>
-                <span style="margin-top: 6px; display: inline-block; background: rgba(56, 189, 248, 0.1); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.25); font-size: 11.5px; padding: 2px 10px; border-radius: 12px; font-weight: 500;">Administrador de Sistema</span>
+                <h3 style="margin: 0; color: #ffffff; font-size: 20px; font-weight: 700; letter-spacing: 0.5px;">{{ currentUser }}</h3>
+                <span style="margin-top: 6px; display: inline-block; background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 11.5px; padding: 2px 12px; border-radius: 12px; font-weight: 600;">{{ currentUserRole }}</span>
             </div>
             
-            <div style="padding: 26px; display: flex; flex-direction: column; gap: 18px;">
-                <div>
-                    <h4 style="margin: 0 0 10px 0; color: #e2e8f0; font-size: 13.5px; font-weight: 600; display: flex; align-items: center; gap: 8px;">🔒 Cambiar Contraseña</h4>
-                    <input aria-label="Contraseña actual" type="password" [(ngModel)]="profileForm.oldPassword" class="form-input-sm" style="width: 100%; box-sizing: border-box; margin-bottom: 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 9px 12px; border-radius: 8px;" placeholder="Contraseña actual">
-                    <input aria-label="Nueva contraseña" type="password" [(ngModel)]="profileForm.newPassword" class="form-input-sm" style="width: 100%; box-sizing: border-box; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 9px 12px; border-radius: 8px;" placeholder="Nueva contraseña">
+            <div style="padding: 22px 24px; display: flex; flex-direction: column; gap: 16px;">
+                <!-- Card 1: Password Change -->
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 16px;">
+                    <h4 style="margin: 0 0 12px 0; color: #f1f5f9; font-size: 13.5px; font-weight: 600; display: flex; align-items: center; gap: 8px;">🔒 Cambiar Contraseña</h4>
+                    <input aria-label="Contraseña actual" type="password" [(ngModel)]="profileForm.oldPassword" class="form-input-sm" style="width: 100%; box-sizing: border-box; margin-bottom: 10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.12); color: white; padding: 10px 14px; border-radius: 8px;" placeholder="Contraseña actual">
+                    <input aria-label="Nueva contraseña" type="password" [(ngModel)]="profileForm.newPassword" class="form-input-sm" style="width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.12); color: white; padding: 10px 14px; border-radius: 8px;" placeholder="Nueva contraseña">
                 </div>
                 
-                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 0;">
-                
-                <div>
-                    <h4 style="margin: 0 0 10px 0; color: #e2e8f0; font-size: 13.5px; font-weight: 600; display: flex; align-items: center; gap: 8px;">📱 Autenticación de 2 Factores (MFA)</h4>
-                    <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); padding: 12px 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);">
-                        <span style="font-size: 12.5px; color: var(--text-secondary);">Enviar código OTP al correo</span>
-                        <label class="toggle-switch" style="position: relative; display: inline-block; width: 44px; height: 24px;">
+                <!-- Card 2: MFA -->
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h4 style="margin: 0; color: #f1f5f9; font-size: 13.5px; font-weight: 600; display: flex; align-items: center; gap: 8px;">📱 Autenticación en Dos Pasos (MFA)</h4>
+                            <p style="margin: 3px 0 0 0; font-size: 11.5px; color: var(--text-muted);">Solicitar código de un solo uso por correo al iniciar sesión</p>
+                        </div>
+                        <label class="toggle-switch" style="position: relative; display: inline-block; width: 46px; height: 26px; flex-shrink: 0;">
                             <input type="checkbox" [(ngModel)]="profileForm.mfaEnabled" style="opacity: 0; width: 0; height: 0;">
-                            <span [style.background-color]="profileForm.mfaEnabled ? '#0284c7' : 'rgba(255,255,255,0.15)'" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; border-radius: 24px; transition: .3s;">
-                                <span [style.left]="profileForm.mfaEnabled ? '22px' : '3px'" style="position: absolute; height: 18px; width: 18px; bottom: 3px; background-color: white; border-radius: 50%; transition: .3s;"></span>
+                            <span [style.background-color]="profileForm.mfaEnabled ? '#0284c7' : 'rgba(255,255,255,0.15)'" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; border-radius: 26px; transition: .3s;">
+                                <span [style.left]="profileForm.mfaEnabled ? '23px' : '3px'" style="position: absolute; height: 20px; width: 20px; bottom: 3px; background-color: white; border-radius: 50%; transition: .3s;"></span>
                             </span>
                         </label>
                     </div>
                 </div>
-                
-                <button (click)="saveProfileChanges()" [disabled]="isSavingProfile" style="width: 100%; border-radius: 8px; margin-top: 6px; background: linear-gradient(135deg, #0284c7, #0369a1); border: 1px solid rgba(56, 189, 248, 0.3); color: white; font-weight: 600; font-size: 13.5px; padding: 11px; cursor: pointer; box-shadow: 0 4px 14px rgba(2, 132, 199, 0.25); transition: all 0.2s;">
-                    {{ isSavingProfile ? 'Guardando...' : 'Guardar Cambios' }}
+
+                <!-- Guardar Cambios Button -->
+                <button (click)="saveProfileChanges()" [disabled]="isSavingProfile" style="width: 100%; border-radius: 10px; background: linear-gradient(135deg, #0284c7, #0369a1); border: 1px solid rgba(56, 189, 248, 0.4); color: white; font-weight: 600; font-size: 13.5px; padding: 12px; cursor: pointer; box-shadow: 0 4px 16px rgba(2, 132, 199, 0.3); transition: all 0.2s;">
+                    {{ isSavingProfile ? 'Guardando...' : 'Guardar Cambios de Cuenta' }}
                 </button>
 
-                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 6px 0 0 0;">
+                <!-- Card 3: Privacidad y Datos (Ley 1581) -->
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+                    <div>
+                        <h4 style="margin: 0; color: #f1f5f9; font-size: 13.5px; font-weight: 600; display: flex; align-items: center; gap: 8px;">🛡️ Privacidad y Mis Datos (Habeas Data)</h4>
+                        <p style="margin: 3px 0 0 0; font-size: 11.5px; color: var(--text-muted);">Control de comunicaciones y ejercicio de derechos ARCO</p>
+                    </div>
 
-                <!-- Sección Privacidad y Derechos de Datos (Ley 1581) -->
-                <div>
-                    <h4 style="margin: 0 0 8px 0; color: #e2e8f0; font-size: 13.5px; font-weight: 600; display: flex; align-items: center; gap: 8px;">🛡️ Privacidad y Mis Datos</h4>
-                    <div style="display: flex; flex-direction: column; gap: 8px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);">
-                            <span style="font-size: 12px; color: var(--text-secondary);">Recibir correos informativos</span>
-                            <button type="button" (click)="toggleEmailOptOut()" style="background: transparent; border: 1px solid rgba(255,255,255,0.2); color: white; padding: 4px 10px; border-radius: 6px; font-size: 11.5px; cursor: pointer;">
-                                {{ emailOptOut ? '❌ Desactivados (Darme de alta)' : '✅ Activos (Darme de baja)' }}
-                            </button>
-                        </div>
-                        <button type="button" (click)="downloadMyData()" style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: #38bdf8; padding: 8px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; text-align: left; display: flex; align-items: center; gap: 8px;">
-                            <span>📥</span> <span>Descargar copia de mis datos personales (JSON)</span>
+                    <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.25); padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">
+                        <span style="font-size: 12px; color: var(--text-secondary);">Correos informativos:</span>
+                        <button type="button" (click)="toggleEmailOptOut()" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.18); color: white; padding: 4px 10px; border-radius: 6px; font-size: 11.5px; cursor: pointer; transition: background 0.2s;">
+                            {{ emailOptOut ? '❌ Desactivados (Darme de alta)' : '✅ Activos (Darme de baja)' }}
                         </button>
-                        <button type="button" (click)="openDeleteAccount()" style="width: 100%; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #f87171; padding: 8px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; text-align: left; display: flex; align-items: center; gap: 8px;">
-                            <span>🗑️</span> <span>Eliminar definitivamente mi cuenta y mis datos</span>
+                    </div>
+
+                    <div style="display: flex; gap: 10px;">
+                        <button type="button" (click)="downloadMyData()" style="flex: 1; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); color: #38bdf8; padding: 9px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 500;">
+                            <span>📥</span> <span>Descargar JSON</span>
+                        </button>
+                        <button type="button" (click)="openDeleteAccount()" style="flex: 1; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.35); color: #f87171; padding: 9px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 500;">
+                            <span>🗑️</span> <span>Eliminar Cuenta</span>
                         </button>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Zoomed Chart Modal (Abrir Gráfica Más Grande) -->
+    <div *ngIf="zoomedChartType" [@popIn] class="modal-overlay chart-zoom-overlay" role="dialog" aria-modal="true" aria-label="Visualizador ampliado de gráfica" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); backdrop-filter: blur(14px); display: flex; align-items: center; justify-content: center; z-index: 999999; padding: 20px; box-sizing: border-box;">
+        <div class="modal-content chart-zoom-content" style="background: #111422; width: 1150px; max-width: 96vw; height: 86vh; max-height: 850px; border-radius: 18px; border: 1px solid rgba(0, 229, 255, 0.28); box-shadow: 0 30px 80px rgba(0,0,0,0.95), 0 0 50px rgba(0, 229, 255, 0.12); display: flex; flex-direction: column; overflow: hidden;">
+            <!-- Header -->
+            <div style="padding: 18px 24px; background: linear-gradient(180deg, #181d30 0%, #111422 100%); border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(0, 229, 255, 0.12); border: 1px solid rgba(0, 229, 255, 0.35); display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                        📈
+                    </div>
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <h3 style="margin: 0; color: #fff; font-size: 18px; font-weight: 600;">{{ zoomedChartTitle }}</h3>
+                            <span class="chart-badge" [style.color]="zoomedChartColor" [style.border-color]="zoomedChartColor">{{ zoomedChartBadge }}</span>
+                            <span style="font-size: 11px; background: rgba(255,255,255,0.08); color: #cbd5e1; padding: 2px 8px; border-radius: 6px;">Rango: {{ selectedTimeRange.toUpperCase() }}</span>
+                        </div>
+                        <p style="margin: 3px 0 0 0; color: var(--text-muted); font-size: 12px;">Vista ampliada de alta resolución con inspección temporal y telemetría continua</p>
+                    </div>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <button type="button" (click)="downloadZoomedChartPng()" style="background: rgba(0, 229, 255, 0.12); border: 1px solid rgba(0, 229, 255, 0.35); color: var(--cyan); padding: 7px 14px; border-radius: 8px; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 600; transition: background 0.2s;">
+                        💾 Descargar Imagen (PNG)
+                    </button>
+                    <button type="button" (click)="closeChartZoom()" title="Cerrar ventana ampliada" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #94a3b8; border-radius: 50%; width: 34px; height: 34px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px;">✕</button>
+                </div>
+            </div>
+
+            <!-- Stats Bar -->
+            <div *ngIf="zoomedChartStats?.length" style="display: flex; gap: 14px; padding: 12px 24px; background: rgba(0,0,0,0.35); border-bottom: 1px solid rgba(255,255,255,0.06); flex-wrap: wrap;">
+                <div *ngFor="let stat of zoomedChartStats" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 8px 16px; display: flex; flex-direction: column;">
+                    <span style="font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">{{ stat.label }}</span>
+                    <span style="font-size: 16px; font-weight: 700; color: #fff;">{{ stat.value }}</span>
+                </div>
+            </div>
+
+            <!-- Enlarged Canvas Body -->
+            <div style="flex: 1; padding: 22px 26px; position: relative; min-height: 0;">
+                <canvas id="zoomedCanvas" role="img" aria-label="Visualizador ampliado de gráfica de telemetría" style="width: 100% !important; height: 100% !important;"></canvas>
             </div>
         </div>
     </div>

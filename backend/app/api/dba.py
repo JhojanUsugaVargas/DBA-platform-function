@@ -3,8 +3,8 @@ import logging
 import random
 from functools import wraps
 from datetime import datetime, timedelta
-from typing import Dict, Any, List
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Dict, Any, List, Optional
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user, role_required
@@ -508,13 +508,44 @@ def get_historical_cpu(
     return HistoricalCpuResponse(labels=labels, data=data, simulated=True)
 
 
-@router.get("/telemetry/overview", summary="Get 24h Telemetry Overview & KPIs (Darling Web Style)")
+@router.get("/telemetry/overview", summary="Get Telemetry Overview & KPIs with Date Range Support")
 def get_telemetry_overview(
+    time_range: str = Query("24h", alias="range", description="Rango temporal: 1h, 6h, 24h, 7d, 30d, custom"),
+    start_date: Optional[str] = Query(None, description="Fecha inicio YYYY-MM-DD para rango custom"),
+    end_date: Optional[str] = Query(None, description="Fecha fin YYYY-MM-DD para rango custom"),
     user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Retorna series temporales de 24 horas y KPIs para la vista general estilo Darling Web."""
+    """Retorna series temporales y KPIs según el rango seleccionado (1h, 6h, 24h, 7d, 30d o custom)."""
     now = datetime.now()
-    labels = [(now - timedelta(hours=i)).strftime("%H:00") for i in range(24, 0, -1)]
+    r = time_range if isinstance(time_range, str) else "24h"
+    
+    # Construcción de labels y cantidad de puntos según el rango
+    if r == "1h":
+        labels = [(now - timedelta(minutes=5 * i)).strftime("%H:%M") for i in range(12, 0, -1)]
+        points = 12
+    elif r == "6h":
+        labels = [(now - timedelta(minutes=20 * i)).strftime("%H:%M") for i in range(18, 0, -1)]
+        points = 18
+    elif r == "7d":
+        labels = [(now - timedelta(days=i)).strftime("%a %d/%m") for i in range(7, 0, -1)]
+        points = 7
+    elif r == "30d":
+        labels = [(now - timedelta(days=i)).strftime("%d/%m") for i in range(30, 0, -1)]
+        points = 30
+    elif r == "custom" and start_date and end_date:
+        try:
+            s_dt = datetime.strptime(start_date, "%Y-%m-%d")
+            e_dt = datetime.strptime(end_date, "%Y-%m-%d")
+            diff_days = max(1, (e_dt - s_dt).days + 1)
+            points = min(diff_days, 30)
+            step = max(1, diff_days // points)
+            labels = [(s_dt + timedelta(days=i * step)).strftime("%d/%m") for i in range(points)]
+        except Exception:
+            labels = [(now - timedelta(hours=i)).strftime("%H:00") for i in range(24, 0, -1)]
+            points = 24
+    else:  # default 24h
+        labels = [(now - timedelta(hours=i)).strftime("%H:00") for i in range(24, 0, -1)]
+        points = 24
 
     cpu_val = 5
     threads_val = "12 activas / 100 max"
@@ -546,11 +577,12 @@ def get_telemetry_overview(
         wait_types = ["PAGEIOLATCH_SH", "CXPACKET", "LCK_M_X", "SOS_SCHEDULER_YIELD", "WRITELOG", "ASYNC_NETWORK_IO"]
         wait_series = [random.randint(150, 1600) for _ in wait_types]
 
-    cpu_series = [max(1, min(100, int(cpu_val + random.randint(-3, 5)))) for _ in range(23)] + [cpu_val]
-    blocking_series = [random.randint(0, 2) if i in (6, 13, 19) else 0 for i in range(23)] + [blocking_count]
-    throughput_series = [random.randint(150, 520) for _ in range(24)]
+    cpu_series = [max(1, min(100, int(cpu_val + random.randint(-4, 6)))) for _ in range(points - 1)] + [cpu_val]
+    blocking_series = [random.randint(0, 2) if i % 5 == 0 else 0 for i in range(points - 1)] + [blocking_count]
+    throughput_series = [random.randint(150, 520) for _ in range(points)]
 
     return {
+        "range": range,
         "labels": labels,
         "cpu_series": cpu_series,
         "blocking_series": blocking_series,

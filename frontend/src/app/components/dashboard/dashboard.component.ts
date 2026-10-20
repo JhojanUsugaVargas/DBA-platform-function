@@ -6,6 +6,7 @@ import { trigger, transition, style, animate, query, stagger } from '@angular/an
 import { ApiService } from '../../core/services/api.service';
 import { DbaService } from '../../core/services/dba.service';
 import { ChatService } from '../../core/services/chat.service';
+import { ConsentService } from '../../core/services/consent.service';
 import { LegalLinksComponent } from '../legal/legal-links.component';
 import { Chart as ChartJS, registerables } from 'chart.js';
 
@@ -70,6 +71,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
   telemetryWaitsChart: any = null;
   telemetryBlockingChart: any = null;
   telemetryThroughputChart: any = null;
+
+  // Time range & Date filtering (1h, 6h, 24h, 7d, 30d, custom)
+  selectedTimeRange: string = '24h';
+  showCustomRange: boolean = false;
+  customStartDate: string = '';
+  customEndDate: string = '';
+
+  // Zoomed chart modal state
+  zoomedChartType: 'cpu' | 'waits' | 'blocking' | 'throughput' | null = null;
+  zoomedChartInstance: any = null;
+  zoomedChartTitle: string = '';
+  zoomedChartBadge: string = '';
+  zoomedChartColor: string = '#00e5ff';
+  zoomedChartStats: { label: string; value: string }[] = [];
 
   // Chat properties
   chatInput: string = '';
@@ -216,7 +231,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private router: Router,
     private apiService: ApiService,
     private dbaService: DbaService,
-    private chatService: ChatService
+    private chatService: ChatService,
+    public consent: ConsentService
   ) {}
 
   // --- Contract Management Modal ---
@@ -1354,6 +1370,7 @@ Date: 2026-10-12`;
   onEscapeKey() {
     if (this.isConsentModalOpen) { return; } // requiere una decisión explícita
     const stack: Array<[boolean, () => void]> = [
+      [this.zoomedChartType !== null, () => this.closeChartZoom()],
       [this.isDeleteAccountOpen, () => this.cancelDeleteAccount()],
       [this.isChangePasswordModalOpen, () => { this.isChangePasswordModalOpen = false; }],
       [this.isEditUserModalOpen, () => { this.isEditUserModalOpen = false; }],
@@ -1514,17 +1531,327 @@ Date: 2026-10-12`;
 
   loadTelemetryOverview() {
     this.isTelemetryLoading = true;
-    this.dbaService.getTelemetryOverview().subscribe({
+    this.dbaService.getTelemetryOverview(this.selectedTimeRange, this.customStartDate, this.customEndDate).subscribe({
       next: (data) => {
         this.telemetryData = data;
         this.isTelemetryLoading = false;
-        setTimeout(() => this.renderTelemetryCharts(data), 150);
+        setTimeout(() => {
+          this.renderTelemetryCharts(data);
+          if (this.zoomedChartType) {
+            this.renderZoomedChart();
+          }
+        }, 150);
       },
       error: (err) => {
         console.error('Error fetching telemetry overview', err);
         this.isTelemetryLoading = false;
       }
     });
+  }
+
+  setTimeRange(range: string) {
+    this.selectedTimeRange = range;
+    if (range === 'custom') {
+      this.showCustomRange = true;
+      if (!this.customStartDate || !this.customEndDate) {
+        const today = new Date();
+        const past = new Date();
+        past.setDate(today.getDate() - 7);
+        this.customEndDate = today.toISOString().split('T')[0];
+        this.customStartDate = past.toISOString().split('T')[0];
+      }
+    } else {
+      this.showCustomRange = false;
+      this.loadTelemetryOverview();
+    }
+  }
+
+  applyCustomRange() {
+    if (this.customStartDate && this.customEndDate) {
+      this.loadTelemetryOverview();
+    }
+  }
+
+  openChartZoom(type: 'cpu' | 'waits' | 'blocking' | 'throughput') {
+    this.zoomedChartType = type;
+    const data = this.telemetryData;
+    if (type === 'cpu') {
+      this.zoomedChartTitle = 'Consumo de CPU en el Tiempo';
+      this.zoomedChartBadge = 'Línea de Base';
+      this.zoomedChartColor = '#00e5ff';
+      const series = data?.cpu_series || [];
+      const maxVal = series.length ? Math.max(...series) : 0;
+      const minVal = series.length ? Math.min(...series) : 0;
+      const avgVal = series.length ? (series.reduce((a: number, b: number) => a + b, 0) / series.length).toFixed(1) : '0';
+      this.zoomedChartStats = [
+        { label: 'Pico Máximo', value: `${maxVal}%` },
+        { label: 'Mínimo', value: `${minVal}%` },
+        { label: 'Promedio', value: `${avgVal}%` },
+        { label: 'Último Valor', value: `${series[series.length - 1] || 0}%` },
+      ];
+    } else if (type === 'waits') {
+      this.zoomedChartTitle = 'Distribución de Tipos de Espera (Top Wait Stats)';
+      this.zoomedChartBadge = 'Filtro Benigno';
+      this.zoomedChartColor = '#f59e0b';
+      const series = data?.wait_series || [];
+      const totalWait = series.reduce((a: number, b: number) => a + b, 0);
+      this.zoomedChartStats = [
+        { label: 'Tiempo Total Espera', value: `${totalWait.toLocaleString()} ms` },
+        { label: 'Tipo Principal', value: data?.wait_types?.[0] || 'N/A' },
+        { label: 'Categorías Rastreadas', value: `${series.length}` },
+      ];
+    } else if (type === 'blocking') {
+      this.zoomedChartTitle = 'Histórico de Bloqueos y Deadlocks';
+      this.zoomedChartBadge = 'Contención de Recursos';
+      this.zoomedChartColor = '#ef4444';
+      const series = data?.blocking_series || [];
+      const totalBlocks = series.reduce((a: number, b: number) => a + b, 0);
+      this.zoomedChartStats = [
+        { label: 'Total Eventos Registrados', value: `${totalBlocks}` },
+        { label: 'Bloqueos Activos Ahora', value: `${data?.kpis?.active_blocks || 0}` },
+        { label: 'Deadlocks (24h)', value: `${data?.kpis?.deadlocks_24h || 0}` },
+      ];
+    } else if (type === 'throughput') {
+      this.zoomedChartTitle = 'Throughput: Batch Requests & Transacciones / seg';
+      this.zoomedChartBadge = 'Throughput Activo';
+      this.zoomedChartColor = '#10b981';
+      const series = data?.throughput_series || [];
+      const maxVal = series.length ? Math.max(...series) : 0;
+      const minVal = series.length ? Math.min(...series) : 0;
+      const avgVal = series.length ? (series.reduce((a: number, b: number) => a + b, 0) / series.length).toFixed(0) : '0';
+      this.zoomedChartStats = [
+        { label: 'Pico Máximo', value: `${maxVal} req/s` },
+        { label: 'Mínimo', value: `${minVal} req/s` },
+        { label: 'Promedio Estimado', value: `${avgVal} req/s` },
+      ];
+    }
+
+    setTimeout(() => this.renderZoomedChart(), 120);
+  }
+
+  closeChartZoom() {
+    if (this.zoomedChartInstance) {
+      try { this.zoomedChartInstance.destroy(); } catch (e) {}
+      this.zoomedChartInstance = null;
+    }
+    this.zoomedChartType = null;
+  }
+
+  renderZoomedChart() {
+    if (!this.zoomedChartType || !this.telemetryData) return;
+    const canvas = document.getElementById('zoomedCanvas') as HTMLCanvasElement;
+    if (!canvas) return;
+
+    if (this.zoomedChartInstance) {
+      try { this.zoomedChartInstance.destroy(); } catch (e) {}
+      this.zoomedChartInstance = null;
+    }
+
+    const data = this.telemetryData;
+    const ctx = canvas.getContext('2d');
+
+    if (this.zoomedChartType === 'cpu') {
+      let grad = null;
+      if (ctx) {
+        grad = ctx.createLinearGradient(0, 0, 0, 450);
+        grad.addColorStop(0, 'rgba(0, 229, 255, 0.45)');
+        grad.addColorStop(1, 'rgba(0, 229, 255, 0.0)');
+      }
+      this.zoomedChartInstance = new Chart(canvas, {
+        type: 'line',
+        data: {
+          labels: data.labels,
+          datasets: [{
+            label: 'Consumo CPU %',
+            data: data.cpu_series,
+            borderColor: '#00e5ff',
+            backgroundColor: grad || 'rgba(0, 229, 255, 0.2)',
+            borderWidth: 2.5,
+            pointBackgroundColor: '#00e5ff',
+            pointBorderColor: '#0f172a',
+            pointRadius: 4,
+            pointHoverRadius: 8,
+            fill: true,
+            tension: 0.35
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: 'rgba(15, 23, 42, 0.95)',
+              titleColor: '#fff',
+              bodyColor: '#00e5ff',
+              padding: 12,
+              displayColors: false,
+              callbacks: { label: (ctx: any) => `CPU: ${ctx.parsed.y}%` }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 100,
+              grid: { color: 'rgba(255, 255, 255, 0.08)' },
+              ticks: { color: 'rgba(255, 255, 255, 0.7)', callback: (v: any) => v + '%' }
+            },
+            x: {
+              grid: { color: 'rgba(255, 255, 255, 0.04)' },
+              ticks: { color: 'rgba(255, 255, 255, 0.7)', maxRotation: 45 }
+            }
+          }
+        }
+      });
+    } else if (this.zoomedChartType === 'waits') {
+      this.zoomedChartInstance = new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels: data.wait_types,
+          datasets: [{
+            label: 'Tiempo de Espera (ms)',
+            data: data.wait_series,
+            backgroundColor: [
+              'rgba(245, 158, 11, 0.85)',
+              'rgba(59, 130, 246, 0.85)',
+              'rgba(239, 68, 68, 0.85)',
+              'rgba(16, 185, 129, 0.85)',
+              'rgba(139, 92, 246, 0.85)',
+              'rgba(14, 165, 233, 0.85)'
+            ],
+            borderRadius: 8
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: 'rgba(15, 23, 42, 0.95)',
+              titleColor: '#fff',
+              bodyColor: '#fbbf24',
+              padding: 12,
+              callbacks: { label: (ctx: any) => `Espera: ${ctx.parsed.y.toLocaleString()} ms` }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: { color: 'rgba(255, 255, 255, 0.08)' },
+              ticks: { color: 'rgba(255, 255, 255, 0.7)', callback: (v: any) => v.toLocaleString() + ' ms' }
+            },
+            x: {
+              grid: { display: false },
+              ticks: { color: 'rgba(255, 255, 255, 0.8)', maxRotation: 25 }
+            }
+          }
+        }
+      });
+    } else if (this.zoomedChartType === 'blocking') {
+      let grad = null;
+      if (ctx) {
+        grad = ctx.createLinearGradient(0, 0, 0, 450);
+        grad.addColorStop(0, 'rgba(239, 68, 68, 0.45)');
+        grad.addColorStop(1, 'rgba(239, 68, 68, 0.0)');
+      }
+      this.zoomedChartInstance = new Chart(canvas, {
+        type: 'line',
+        data: {
+          labels: data.labels,
+          datasets: [{
+            label: 'Eventos de Contención',
+            data: data.blocking_series,
+            borderColor: '#ef4444',
+            backgroundColor: grad || 'rgba(239, 68, 68, 0.2)',
+            borderWidth: 2.5,
+            stepped: true,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: 'rgba(15, 23, 42, 0.95)',
+              titleColor: '#fff',
+              bodyColor: '#f87171',
+              padding: 12
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: { color: 'rgba(255, 255, 255, 0.08)' },
+              ticks: { color: 'rgba(255, 255, 255, 0.7)', stepSize: 1 }
+            },
+            x: {
+              grid: { display: false },
+              ticks: { color: 'rgba(255, 255, 255, 0.7)', maxRotation: 45 }
+            }
+          }
+        }
+      });
+    } else if (this.zoomedChartType === 'throughput') {
+      let grad = null;
+      if (ctx) {
+        grad = ctx.createLinearGradient(0, 0, 0, 450);
+        grad.addColorStop(0, 'rgba(16, 185, 129, 0.45)');
+        grad.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+      }
+      this.zoomedChartInstance = new Chart(canvas, {
+        type: 'line',
+        data: {
+          labels: data.labels,
+          datasets: [{
+            label: 'Batch Requests / seg',
+            data: data.throughput_series,
+            borderColor: '#10b981',
+            backgroundColor: grad || 'rgba(16, 185, 129, 0.2)',
+            borderWidth: 2.5,
+            pointBackgroundColor: '#10b981',
+            pointRadius: 4,
+            fill: true,
+            tension: 0.35
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: 'rgba(15, 23, 42, 0.95)',
+              titleColor: '#fff',
+              bodyColor: '#34d399',
+              padding: 12
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: { color: 'rgba(255, 255, 255, 0.08)' },
+              ticks: { color: 'rgba(255, 255, 255, 0.7)' }
+            },
+            x: {
+              grid: { display: false },
+              ticks: { color: 'rgba(255, 255, 255, 0.7)', maxRotation: 45 }
+            }
+          }
+        }
+      });
+    }
+  }
+
+  downloadZoomedChartPng() {
+    const canvas = document.getElementById('zoomedCanvas') as HTMLCanvasElement;
+    if (!canvas) return;
+    const link = document.createElement('a');
+    link.download = `datacheck-${this.zoomedChartType || 'chart'}-${this.selectedTimeRange}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
   }
 
   destroyTelemetryCharts() {

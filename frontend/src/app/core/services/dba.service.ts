@@ -72,8 +72,11 @@ export class DbaService {
     return this.getMaintenance();
   }
 
-  getTelemetryOverview(): Observable<any> {
-    return this.http.get<any>(`${this.baseUrl}/telemetry/overview`);
+  getTelemetryOverview(range: string = '24h', startDate?: string, endDate?: string): Observable<any> {
+    const params: Record<string, string> = { range };
+    if (startDate) params['start_date'] = startDate;
+    if (endDate) params['end_date'] = endDate;
+    return this.http.get<any>(`${this.baseUrl}/telemetry/overview`, { params });
   }
 
   getBackups(): Observable<DbaActionResponse> {
