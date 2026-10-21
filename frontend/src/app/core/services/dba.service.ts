@@ -82,4 +82,8 @@ export class DbaService {
   getBackups(): Observable<DbaActionResponse> {
     return this.http.get<DbaActionResponse>(`${this.baseUrl}/backups`);
   }
+
+  getTopQueries(): Observable<DbaActionResponse> {
+    return this.http.get<DbaActionResponse>(`${this.baseUrl}/top-queries`);
+  }
 }

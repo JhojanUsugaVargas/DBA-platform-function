@@ -7,6 +7,7 @@ import { ApiService } from '../../core/services/api.service';
 import { DbaService } from '../../core/services/dba.service';
 import { ChatService } from '../../core/services/chat.service';
 import { ConsentService } from '../../core/services/consent.service';
+import { ToastService } from '../../core/services/toast.service';
 import { LegalLinksComponent } from '../legal/legal-links.component';
 import { Chart as ChartJS, registerables } from 'chart.js';
 
@@ -92,6 +93,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
   telemetryWaitsChart: any = null;
   telemetryBlockingChart: any = null;
   telemetryThroughputChart: any = null;
+
+  // Auto-refresh properties (0 = off, 10, 30, 60s)
+  autoRefreshInterval: number = 0;
+  autoRefreshCountdown: number = 0;
+  private autoRefreshTimer: any = null;
+  private countdownTimer: any = null;
 
   // Time range & Date filtering (1h, 6h, 24h, 7d, 30d, custom)
   selectedTimeRange: string = '24h';
@@ -235,6 +242,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     { key: 'jobs', label: 'Estado de Jobs / Tareas', icon: '📋' },
     { key: 'alwayson', label: 'Nodos AlwaysOn / Réplicas', icon: '🔗' },
     { key: 'performance', label: 'Performance General', icon: '📈' },
+    { key: 'topqueries', label: 'Top Consultas Lentas', icon: '🔥' },
     { key: 'datalog', label: 'Validar Data y Log', icon: '🔍' },
     { key: 'backups', label: 'Estado de Respaldos (Backups)', icon: '💾' },
     { key: 'cancelar', label: 'Forzar Cancelación (Kill)', icon: '❌' }
@@ -252,7 +260,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private apiService: ApiService,
     private dbaService: DbaService,
     private chatService: ChatService,
-    public consent: ConsentService
+    public consent: ConsentService,
+    public toast: ToastService
   ) {}
 
   // --- Contract Management Modal ---
@@ -267,19 +276,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   submitContract() {
     if (!this.newContractName.trim()) {
-      alert('Ingresa el nombre del contrato.');
+      this.toast.warning('Ingresa el nombre del contrato.');
       return;
     }
     this.isCreatingContract = true;
     this.apiService.createContract(this.newContractName.trim()).subscribe({
       next: (res) => {
-        alert(`Contrato '${this.newContractName}' creado exitosamente.`);
+        this.toast.success(`Contrato '${this.newContractName}' creado exitosamente.`);
         this.isCreatingContract = false;
         this.closeContractModal();
         this.loadContracts();
       },
       error: (err) => {
-        alert(err.error?.detail || 'Error al crear contrato');
+        this.toast.error(err.error?.detail || 'Error al crear contrato');
         this.isCreatingContract = false;
       }
     });
@@ -288,7 +297,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   openEditContractModal(contract?: any) {
     const c = contract || this.contracts.find(item => item.id === this.selectedContractId);
     if (!c) {
-      alert('Por favor selecciona un contrato para editar.');
+      this.toast.warning('Por favor selecciona un contrato para editar.');
       return;
     }
     this.editingContractId = c.id;
@@ -304,19 +313,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   submitUpdateContract() {
     if (!this.editingContractId || !this.editingContractName.trim()) {
-      alert('Ingresa un nombre válido para el contrato.');
+      this.toast.warning('Ingresa un nombre válido para el contrato.');
       return;
     }
     this.isUpdatingContract = true;
     this.apiService.updateContract(this.editingContractId, this.editingContractName.trim()).subscribe({
       next: (res) => {
-        alert(`Contrato actualizado exitosamente a '${this.editingContractName}'.`);
+        this.toast.success(`Contrato actualizado exitosamente a '${this.editingContractName}'.`);
         this.isUpdatingContract = false;
         this.closeEditContractModal();
         this.loadContracts();
       },
       error: (err) => {
-        alert(err.error?.detail || 'Error al actualizar el contrato');
+        this.toast.error(err.error?.detail || 'Error al actualizar el contrato');
         this.isUpdatingContract = false;
       }
     });
@@ -325,7 +334,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   confirmDeleteContract(contractId?: number, contractName?: string) {
     const cid = contractId || this.selectedContractId;
     if (!cid) {
-      alert('Por favor selecciona un contrato para eliminar.');
+      this.toast.warning('Por favor selecciona un contrato para eliminar.');
       return;
     }
     const c = this.contracts.find(item => item.id === cid);
@@ -334,14 +343,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (confirm(`¿Estás seguro de eliminar el contrato "${name}" y desactivar sus instancias asociadas?`)) {
       this.apiService.deleteContract(cid).subscribe({
         next: () => {
-          alert(`Contrato "${name}" eliminado correctamente.`);
+          this.toast.success(`Contrato "${name}" eliminado correctamente.`);
           if (this.selectedContractId === cid) {
             this.selectedContractId = null;
           }
           this.loadContracts();
         },
         error: (err) => {
-          alert(err.error?.detail || 'Error al eliminar el contrato.');
+          this.toast.error(err.error?.detail || 'Error al eliminar el contrato.');
         }
       });
     }
@@ -382,12 +391,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   submitInstance() {
     if (!this.newInstance.name.trim() || !this.newInstance.host.trim() || !this.newInstance.database.trim()) {
-      alert('Por favor completa Nombre, Servidor/Host y Base de Datos.');
+      this.toast.warning('Por favor completa Nombre, Servidor/Host y Base de Datos.');
       return;
     }
     const contractId = this.newInstance.contractId || this.selectedContractId;
     if (!contractId) {
-      alert('Debes seleccionar un contrato para la instancia.');
+      this.toast.warning('Debes seleccionar un contrato para la instancia.');
       return;
     }
 
@@ -407,13 +416,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.isCreatingInstance = true;
     this.apiService.createInstance(contractId, this.newInstance.name.trim(), connStr).subscribe({
       next: (res) => {
-        alert(`Instancia '${this.newInstance.name}' registrada correctamente.`);
+        this.toast.success(`Instancia '${this.newInstance.name}' registrada correctamente.`);
         this.isCreatingInstance = false;
         this.closeInstanceModal();
         this.loadInstances();
       },
       error: (err) => {
-        alert(err.error?.detail || 'Error al registrar instancia');
+        this.toast.error(err.error?.detail || 'Error al registrar instancia');
         this.isCreatingInstance = false;
       }
     });
@@ -435,7 +444,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   testInstanceFormConnection() {
     if (!this.newInstance.host.trim() || !this.newInstance.database.trim()) {
-      alert('Ingresa al menos Servidor/Host y Base de Datos para probar la conexión.');
+      this.toast.warning('Ingresa al menos Servidor/Host y Base de Datos para probar la conexión.');
       return;
     }
     const connStr = this.buildNewInstanceConnStr();
@@ -447,36 +456,36 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.isTestingConnection = false;
         if (res.success) {
           this.testConnectionFeedback = `✅ ¡Conexión exitosa! (${res.latency_ms} ms) - Motor: ${res.engine}`;
-          alert(`✅ ¡Conexión Exitosa!\n\nMotor: ${res.engine}\nLatencia: ${res.latency_ms} ms\nVersión: ${res.version || 'OK'}`);
+          this.toast.success(`✅ ¡Conexión Exitosa!\n\nMotor: ${res.engine}\nLatencia: ${res.latency_ms} ms\nVersión: ${res.version || 'OK'}`);
         } else {
           this.testConnectionFeedback = `❌ Error: ${res.error || 'No se pudo conectar'}`;
-          alert(`❌ Error al conectar (${res.latency_ms} ms):\n\n${res.error || 'Verifica host, puerto o credenciales.'}`);
+          this.toast.error(`❌ Error al conectar (${res.latency_ms} ms):\n\n${res.error || 'Verifica host, puerto o credenciales.'}`);
         }
       },
       error: (err) => {
         this.isTestingConnection = false;
         const msg = err.error?.detail || 'Error al probar conexión remota';
         this.testConnectionFeedback = `❌ Error: ${msg}`;
-        alert(`❌ ${msg}`);
+        this.toast.error(`❌ ${msg}`);
       }
     });
   }
 
   testCurrentInstance() {
     if (!this.selectedInstanceId) {
-      alert('Por favor selecciona una instancia primero.');
+      this.toast.warning('Por favor selecciona una instancia primero.');
       return;
     }
     this.apiService.testInstanceConnection(this.selectedInstanceId).subscribe({
       next: (res) => {
         if (res.success) {
-          alert(`✅ ¡Instancia en Línea!\n\nMotor: ${res.engine}\nLatencia de respuesta: ${res.latency_ms} ms\nVersión: ${res.version || 'OK'}`);
+          this.toast.success(`✅ ¡Instancia en Línea!\n\nMotor: ${res.engine}\nLatencia de respuesta: ${res.latency_ms} ms\nVersión: ${res.version || 'OK'}`);
         } else {
-          alert(`⚠️ Falla en Instancia (${res.latency_ms} ms):\n\n${res.error || 'El servidor no responde o credenciales inválidas.'}`);
+          this.toast.error(`⚠️ Falla en Instancia (${res.latency_ms} ms):\n\n${res.error || 'El servidor no responde o credenciales inválidas.'}`);
         }
       },
       error: (err) => {
-        alert(err.error?.detail || 'Error al probar la instancia');
+        this.toast.error(err.error?.detail || 'Error al probar la instancia');
       }
     });
   }
@@ -507,7 +516,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   exportAuditToCsv() {
     if (!this.auditLogs || !this.auditLogs.length) {
-      alert('No hay registros de auditoría para exportar.');
+      this.toast.info('No hay registros de auditoría para exportar.');
       return;
     }
     const headers = ['ID', 'Usuario', 'Accion', 'Motor', 'SPID', 'Estado', 'Detalles', 'Fecha'];
@@ -562,7 +571,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const file = event.target.files?.[0];
     if (file) {
       if (file.size > 3 * 1024 * 1024) {
-        alert('⚠️ La imagen seleccionada es muy pesada (máximo 3 MB). Por favor selecciona una imagen más liviana.');
+        this.toast.error('⚠️ La imagen seleccionada es muy pesada (máximo 3 MB). Por favor selecciona una imagen más liviana.');
         return;
       }
       const reader = new FileReader();
@@ -592,13 +601,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
     // Save Photo only if the user changed or removed it (a new photo requires declaring image rights)
     if (this.photoChanged && this.profilePhotoUrl !== null && this.profilePhotoUrl !== undefined) {
       if (this.profilePhotoUrl && !this.photoRightsConfirmed) {
-        alert('Para guardar la foto debes declarar que tienes derechos para usar la imagen.');
+        this.toast.warning('Para guardar la foto debes declarar que tienes derechos para usar la imagen.');
         this.isSavingProfile = false;
         return;
       }
       this.apiService.updatePhoto({ photo_base64: this.profilePhotoUrl, rights_confirmed: this.photoRightsConfirmed }).subscribe({
         next: () => { this.photoChanged = false; },
-        error: (err) => alert(err.error?.detail || 'Error al guardar la foto')
+        error: (err) => this.toast.error(err.error?.detail || 'Error al guardar la foto')
       });
     }
 
@@ -609,21 +618,21 @@ export class DashboardComponent implements OnInit, OnDestroy {
         new_password: this.profileForm.newPassword
       }).subscribe({
         next: (res) => {
-          alert('✅ Perfil actualizado exitosamente (contraseña y foto guardadas).');
+          this.toast.success('✅ Perfil actualizado exitosamente (contraseña y foto guardadas).');
           this.profileForm.oldPassword = '';
           this.profileForm.newPassword = '';
           this.isSavingProfile = false;
           this.closeProfileModal();
         },
         error: (err) => {
-          alert(err.error?.detail || 'Error al cambiar contraseña');
+          this.toast.error(err.error?.detail || 'Error al cambiar contraseña');
           this.isSavingProfile = false;
         }
       });
     } else {
       setTimeout(() => {
         this.isSavingProfile = false;
-        alert('✅ Foto de perfil y ajustes guardados con éxito.');
+        this.toast.success('✅ Foto de perfil y ajustes guardados con éxito.');
         this.closeProfileModal();
       }, 500);
     }
@@ -684,18 +693,18 @@ export class DashboardComponent implements OnInit, OnDestroy {
   submitChangePassword() {
     if (!this.targetUserForPassword) return;
     if (!this.newPasswordForUser || this.newPasswordForUser.length < 8) {
-      alert('Por seguridad (OWASP), la contraseña debe tener al menos 8 caracteres.');
+      this.toast.info('Por seguridad (OWASP), la contraseña debe tener al menos 8 caracteres.');
       return;
     }
     this.isChangingPassword = true;
     this.apiService.changeUserPassword(this.targetUserForPassword.id, this.newPasswordForUser).subscribe({
       next: (res) => {
-        alert(`Contraseña actualizada con éxito para el usuario '${this.targetUserForPassword.username}'.`);
+        this.toast.success(`Contraseña actualizada con éxito para el usuario '${this.targetUserForPassword.username}'.`);
         this.isChangingPassword = false;
         this.closeChangePasswordModal();
       },
       error: (err) => {
-        alert(err.error?.detail || 'Error al cambiar contraseña');
+        this.toast.error(err.error?.detail || 'Error al cambiar contraseña');
         this.isChangingPassword = false;
       }
     });
@@ -703,17 +712,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   confirmDeleteUser(user: any) {
     if (user.username === this.currentUser) {
-      alert('No puedes eliminar tu propia cuenta en sesión activa.');
+      this.toast.info('No puedes eliminar tu propia cuenta en sesión activa.');
       return;
     }
     if (confirm(`¿Estás seguro de eliminar al usuario "${user.username}"?`)) {
       this.apiService.deleteUser(user.id).subscribe({
         next: () => {
-          alert(`Usuario "${user.username}" eliminado correctamente.`);
+          this.toast.success(`Usuario "${user.username}" eliminado correctamente.`);
           this.loadUsers();
         },
         error: (err) => {
-          alert(err.error?.detail || 'Error al eliminar usuario.');
+          this.toast.error(err.error?.detail || 'Error al eliminar usuario.');
         }
       });
     }
@@ -743,13 +752,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
       role: this.editingUserForm.role
     }).subscribe({
       next: (res) => {
-        alert(`Usuario '${this.editingUserForm.username}' actualizado exitosamente.`);
+        this.toast.success(`Usuario '${this.editingUserForm.username}' actualizado exitosamente.`);
         this.isUpdatingUser = false;
         this.closeEditUserModal();
         this.loadUsers();
       },
       error: (err) => {
-        alert(err.error?.detail || 'Error al actualizar usuario.');
+        this.toast.error(err.error?.detail || 'Error al actualizar usuario.');
         this.isUpdatingUser = false;
       }
     });
@@ -911,7 +920,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       } else {
         modulesToDisable = Object.keys(this.selectedModulesToDisable).filter(k => this.selectedModulesToDisable[k]);
         if (modulesToDisable.length === 0) {
-          alert('Por favor selecciona al menos un botón/módulo a deshabilitar o activa el "Bloqueo Global".');
+          this.toast.warning('Por favor selecciona al menos un botón/módulo a deshabilitar o activa el "Bloqueo Global".');
           this.isSavingMaintenanceConfig = false;
           return;
         }
@@ -930,17 +939,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.checkServerMaintenanceStatus();
         if (activate) {
           if (this.isGlobalMaintenanceOption) {
-            alert('🛠️ Bloqueo Global Activado:\nTodos los usuarios que no son Administradores tienen la pantalla bloqueada con temporizador en tiempo real.');
+            this.toast.info('🛠️ Bloqueo Global Activado:\nTodos los usuarios que no son Administradores tienen la pantalla bloqueada con temporizador en tiempo real.');
           } else {
-            alert(`🛠️ Mantenimiento Modular Activado:\nSe han deshabilitado ${modulesToDisable.length} botones específicos. El resto de la base de datos y la plataforma siguen operativos para los usuarios.`);
+            this.toast.info(`🛠️ Mantenimiento Modular Activado:\nSe han deshabilitado ${modulesToDisable.length} botones específicos. El resto de la base de datos y la plataforma siguen operativos para los usuarios.`);
           }
         } else {
-          alert('✅ Modo Mantenimiento DESACTIVADO.\nTodos los módulos y la plataforma han sido restablecidos con normalidad.');
+          this.toast.success('✅ Modo Mantenimiento DESACTIVADO.\nTodos los módulos y la plataforma han sido restablecidos con normalidad.');
         }
       },
       error: (err) => {
         this.isSavingMaintenanceConfig = false;
-        alert(err.error?.detail || 'Error al actualizar configuración de mantenimiento');
+        this.toast.error(err.error?.detail || 'Error al actualizar configuración de mantenimiento');
       }
     });
   }
@@ -993,9 +1002,9 @@ Supported Engines: Microsoft SQL Server (ODBC 18) & PostgreSQL (PG12-PG17)
 Security: AES-128 Fernet & JWT & Immutable Audit Logs
 Date: 2026-10-12`;
     navigator.clipboard.writeText(info).then(() => {
-      alert('Información del sistema copiada al portapapeles.');
+      this.toast.info('Información del sistema copiada al portapapeles.');
     }).catch(() => {
-      alert(info);
+      this.toast.info(info);
     });
   }
 
@@ -1017,23 +1026,23 @@ Date: 2026-10-12`;
 
   submitFeedback() {
     if (this.feedbackComment.trim() && !this.feedbackConsent) {
-      alert('Para enviar tu comentario debes autorizar su tratamiento marcando la casilla.');
+      this.toast.warning('Para enviar tu comentario debes autorizar su tratamiento marcando la casilla.');
       return;
     }
     this.apiService.submitFeedback(this.feedbackRating, this.feedbackComment, true).subscribe({
       next: () => {
-        alert('Gracias, recibimos tu comentario.');
+        this.toast.info('Gracias, recibimos tu comentario.');
         this.isFeedbackModalOpen = false;
       },
       error: (err) => {
-        alert("Error enviando feedback: " + (err.error?.detail || err.message));
+        this.toast.error("Error enviando feedback: " + (err.error?.detail || err.message));
       }
     });
   }
 
   submitUser() {
     if (!this.newUser.username.trim()) {
-      alert("Por favor ingresa un nombre de usuario.");
+      this.toast.warning("Por favor ingresa un nombre de usuario.");
       return;
     }
     this.isCreatingUser = true;
@@ -1054,13 +1063,13 @@ Date: 2026-10-12`;
         } else if (payload.password) {
           msg += `\nContraseña configurada: ${payload.password}`;
         }
-        alert(msg);
+        this.toast.info(msg);
         this.isCreatingUser = false;
         this.userManagementTab = 'list';
         this.loadUsers();
       },
       error: (err) => {
-        alert(err.error?.detail || "Error al crear usuario");
+        this.toast.error(err.error?.detail || "Error al crear usuario");
         this.isCreatingUser = false;
       }
     });
@@ -1265,7 +1274,7 @@ Date: 2026-10-12`;
 
   selectTab(tab: string) {
     if (!this.isAdmin && this.isModuleDisabled(tab)) {
-      alert(`⚠️ La función '${tab.toUpperCase()}' se encuentra temporalmente deshabilitada por mantenimiento técnico. El resto del sistema y la base de datos continúan operativos.`);
+      this.toast.warning(`⚠️ La función '${tab.toUpperCase()}' se encuentra temporalmente deshabilitada por mantenimiento técnico. El resto del sistema y la base de datos continúan operativos.`);
       return;
     }
     this.activeTab = tab;
@@ -1318,7 +1327,7 @@ Date: 2026-10-12`;
   acceptLegalDocuments() {
     this.apiService.acceptLegalDocuments().subscribe({
       next: () => { this.isConsentModalOpen = false; },
-      error: (err) => alert(err.error?.detail || 'No se pudo registrar tu autorización. Inténtalo de nuevo.')
+      error: (err) => this.toast.error(err.error?.detail || 'No se pudo registrar tu autorización. Inténtalo de nuevo.')
     });
   }
 
@@ -1339,7 +1348,7 @@ Date: 2026-10-12`;
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
       },
-      error: (err) => alert(err.error?.detail || 'No se pudieron descargar tus datos.')
+      error: (err) => this.toast.error(err.error?.detail || 'No se pudieron descargar tus datos.')
     });
   }
 
@@ -1347,7 +1356,7 @@ Date: 2026-10-12`;
     const next = !this.emailOptOut;
     this.apiService.setEmailOptOut(next).subscribe({
       next: () => { this.emailOptOut = next; },
-      error: (err) => alert(err.error?.detail || 'No se pudo actualizar tu preferencia.')
+      error: (err) => this.toast.error(err.error?.detail || 'No se pudo actualizar tu preferencia.')
     });
   }
 
@@ -1363,19 +1372,19 @@ Date: 2026-10-12`;
 
   confirmDeleteAccount() {
     if (!this.deleteAccountPassword) {
-      alert('Ingresa tu contraseña para confirmar.');
+      this.toast.warning('Ingresa tu contraseña para confirmar.');
       return;
     }
     this.isDeletingAccount = true;
     this.apiService.deleteMyAccount(this.deleteAccountPassword).subscribe({
       next: (res) => {
         this.isDeletingAccount = false;
-        alert(res.message || 'Tu cuenta fue eliminada.');
+        this.toast.success(res.message || 'Tu cuenta fue eliminada.');
         this.logout();
       },
       error: (err) => {
         this.isDeletingAccount = false;
-        alert(err.error?.detail || 'No se pudo eliminar la cuenta.');
+        this.toast.error(err.error?.detail || 'No se pudo eliminar la cuenta.');
       }
     });
   }
@@ -1405,11 +1414,11 @@ Date: 2026-10-12`;
 
   runAction(actionName: string) {
     if (!this.isAdmin && this.isModuleDisabled(actionName)) {
-      alert(`⚠️ La acción '${actionName.toUpperCase()}' está en mantenimiento técnico.`);
+      this.toast.warning(`⚠️ La acción '${actionName.toUpperCase()}' está en mantenimiento técnico.`);
       return;
     }
     if (!this.selectedInstanceId) {
-      alert("Por favor, selecciona una instancia primero.");
+      this.toast.warning("Por favor, selecciona una instancia primero.");
       return;
     }
 
@@ -1434,10 +1443,11 @@ Date: 2026-10-12`;
       case 'maintenance':
       case 'pg_autovacuum': actionObs = this.dbaService.getMaintenance(); break;
       case 'backups': actionObs = this.dbaService.getBackups(); break;
+      case 'topqueries': actionObs = this.dbaService.getTopQueries(); break;
       case 'cancelar': 
         this.isLoadingAction = false;
         if (!this.canCancelQueries) {
-          alert('⛔ Permisos insuficientes: Solo el Administrador y el DBA Principal tienen autorización para forzar la cancelación de consultas y procesos.');
+          this.toast.error('⛔ Permisos insuficientes: Solo el Administrador y el DBA Principal tienen autorización para forzar la cancelación de consultas y procesos.');
           return;
         }
         this.isChatMinimized = false;
@@ -1561,6 +1571,71 @@ Date: 2026-10-12`;
         console.error('Error fetching telemetry overview', err);
         this.isTelemetryLoading = false;
       }
+    });
+  }
+
+  setAutoRefresh(seconds: number) {
+    this.autoRefreshInterval = seconds;
+    this.autoRefreshCountdown = seconds;
+    if (this.autoRefreshTimer) {
+      clearInterval(this.autoRefreshTimer);
+      this.autoRefreshTimer = null;
+    }
+    if (this.countdownTimer) {
+      clearInterval(this.countdownTimer);
+      this.countdownTimer = null;
+    }
+
+    if (seconds > 0) {
+      this.toast.info(`Auto-refresco activado cada ${seconds}s.`, 'Monitor en Vivo');
+      this.countdownTimer = setInterval(() => {
+        if (this.autoRefreshCountdown > 1) {
+          this.autoRefreshCountdown--;
+        } else {
+          this.autoRefreshCountdown = seconds;
+        }
+      }, 1000);
+
+      this.autoRefreshTimer = setInterval(() => {
+        this.loadTelemetryOverview();
+      }, seconds * 1000);
+    } else {
+      this.toast.info('Auto-refresco en pausa.', 'Pausado');
+    }
+  }
+
+  exportCurrentTableToCsv(title?: string) {
+    const data = this.getActionData();
+    if (!data || !Array.isArray(data) || !data.length) {
+      this.toast.warning('No hay datos tabulares para exportar.');
+      return;
+    }
+    const keys = Object.keys(data[0]);
+    const headers = keys.join(',');
+    const rows = data.map(row => 
+      keys.map(k => `"${(row[k] !== null && row[k] !== undefined ? String(row[k]) : '').replace(/"/g, '""')}"`).join(',')
+    );
+    const csvContent = '\uFEFF' + [headers, ...rows].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const tabName = title || this.activeTab || 'datacheck';
+    const filename = `datacheck_${tabName.toLowerCase().replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    this.toast.success(`Datos descargados: ${filename}`, 'CSV Exportado');
+  }
+
+  copyQuerySql(sql: string) {
+    if (!sql) return;
+    navigator.clipboard.writeText(sql).then(() => {
+      this.toast.success('Consulta SQL copiada al portapapeles.', 'Copiado');
+    }).catch(() => {
+      this.toast.info(sql, 'Consulta SQL');
     });
   }
 

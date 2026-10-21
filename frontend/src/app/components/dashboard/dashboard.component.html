@@ -88,6 +88,10 @@
                         <span class="action-icon">📈</span><span>Performance General</span>
                         <span *ngIf="isModuleDisabled('performance')" style="font-size: 9px; background: rgba(245,158,11,0.25); color: #fbbf24; border: 1px solid rgba(245,158,11,0.5); padding: 1px 4px; border-radius: 4px; margin-left: auto;">⚙️ En ajuste</span>
                     </button>
+                    <button class="action-btn" [class.active]="activeTab === 'topqueries'" [style.opacity]="!isAdmin && isModuleDisabled('topqueries') ? '0.45' : '1'" [style.cursor]="!isAdmin && isModuleDisabled('topqueries') ? 'not-allowed' : 'pointer'" (click)="selectTab('topqueries')" [title]="(!isAdmin && isModuleDisabled('topqueries')) ? '⚠️ Módulo en mantenimiento' : 'Top 10 Consultas más lentas / pesadas'">
+                        <span class="action-icon">🔥</span><span>Top Consultas</span>
+                        <span *ngIf="isModuleDisabled('topqueries')" style="font-size: 9px; background: rgba(245,158,11,0.25); color: #fbbf24; border: 1px solid rgba(245,158,11,0.5); padding: 1px 4px; border-radius: 4px; margin-left: auto;">⚙️ En ajuste</span>
+                    </button>
                     <button class="action-btn" [class.active]="activeTab === 'datalog'" [style.opacity]="!isAdmin && isModuleDisabled('datalog') ? '0.45' : '1'" [style.cursor]="!isAdmin && isModuleDisabled('datalog') ? 'not-allowed' : 'pointer'" (click)="selectTab('datalog')" [title]="(!isAdmin && isModuleDisabled('datalog')) ? '⚠️ Módulo en mantenimiento' : ''">
                         <span class="action-icon">🔍</span><span>Validar Data y Log</span>
                         <span *ngIf="isModuleDisabled('datalog')" style="font-size: 9px; background: rgba(245,158,11,0.25); color: #fbbf24; border: 1px solid rgba(245,158,11,0.5); padding: 1px 4px; border-radius: 4px; margin-left: auto;">⚙️ En ajuste</span>
@@ -305,10 +309,23 @@
                         </div>
                     </div>
 
-                    <div class="toolbar-right">
+                    <div class="toolbar-right" style="display: flex; align-items: center; gap: 10px;">
                         <span class="range-status">
                             Visualizando: <strong style="color: var(--cyan); text-transform: uppercase;">{{ selectedTimeRange }}</strong>
                         </span>
+                        <div class="auto-refresh-group" style="display: flex; align-items: center; gap: 3px; background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 8px;">
+                            <span style="font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 4px; padding-right: 3px;">
+                                <span *ngIf="autoRefreshInterval > 0" class="status-pulse-dot" style="width: 6px; height: 6px; background: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981;"></span>
+                                ⏱️ Auto:
+                            </span>
+                            <button type="button" class="range-pill" [class.active]="autoRefreshInterval === 0" (click)="setAutoRefresh(0)" style="padding: 2px 7px; font-size: 10.5px;">Off</button>
+                            <button type="button" class="range-pill" [class.active]="autoRefreshInterval === 10" (click)="setAutoRefresh(10)" style="padding: 2px 7px; font-size: 10.5px;">10s</button>
+                            <button type="button" class="range-pill" [class.active]="autoRefreshInterval === 30" (click)="setAutoRefresh(30)" style="padding: 2px 7px; font-size: 10.5px;">30s</button>
+                            <button type="button" class="range-pill" [class.active]="autoRefreshInterval === 60" (click)="setAutoRefresh(60)" style="padding: 2px 7px; font-size: 10.5px;">1m</button>
+                            <span *ngIf="autoRefreshInterval > 0" style="font-size: 10.5px; color: #10b981; font-family: monospace; font-weight: 600; min-width: 18px; text-align: center;">
+                                {{ autoRefreshCountdown }}s
+                            </span>
+                        </div>
                         <button type="button" class="refresh-pill-btn" (click)="loadTelemetryOverview()" [disabled]="isTelemetryLoading" title="Actualizar datos de telemetría">
                             <span [class.spin]="isTelemetryLoading">🔄</span> Refrescar
                         </button>
@@ -507,19 +524,37 @@
             </ng-template>
 
             <ng-template #dataTable>
-                <div *ngIf="getActionData() && isArray(getActionData()) && getActionData().length > 0; else noTableData" style="overflow-x: auto;">
-                    <table style="width: 100%; border-collapse: collapse; color: var(--text-secondary); font-size: 13px; text-align: left; background: rgba(0,0,0,0.2); border-radius: 8px;">
-                        <thead>
-                            <tr style="border-bottom: 1px solid var(--border-subtle); color: var(--text-primary); background: rgba(0,0,0,0.5);">
-                                <th *ngFor="let key of getKeys(getActionData()[0])" style="padding: 12px; font-weight: 500; text-transform: uppercase; font-size: 11px; white-space: nowrap;">{{ key }}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr *ngFor="let row of getActionData()" class="table-row-animated" style="border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
-                                <td *ngFor="let key of getKeys(row)" style="padding: 12px; white-space: nowrap;">{{ row[key] }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <div *ngIf="getActionData() && isArray(getActionData()) && getActionData().length > 0; else noTableData">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-subtle); padding: 8px 14px; border-radius: 8px;">
+                        <span style="font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px;">
+                            <span>📊</span> Registros: <strong style="color: white;">{{ getActionData().length }}</strong>
+                        </span>
+                        <button type="button" (click)="exportCurrentTableToCsv(getActionTitle())" style="background: rgba(0,229,255,0.1); border: 1px solid rgba(0,229,255,0.3); color: var(--cyan); padding: 5px 12px; border-radius: 6px; font-size: 11.5px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 500;">
+                            📥 <span>Descargar CSV</span>
+                        </button>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; color: var(--text-secondary); font-size: 13px; text-align: left; background: rgba(0,0,0,0.2); border-radius: 8px;">
+                            <thead>
+                                <tr style="border-bottom: 1px solid var(--border-subtle); color: var(--text-primary); background: rgba(0,0,0,0.5);">
+                                    <th *ngFor="let key of getKeys(getActionData()[0])" style="padding: 12px; font-weight: 500; text-transform: uppercase; font-size: 11px; white-space: nowrap;">{{ key }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr *ngFor="let row of getActionData()" class="table-row-animated" style="border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
+                                    <td *ngFor="let key of getKeys(row)" style="padding: 12px; white-space: nowrap;">
+                                        <ng-container *ngIf="key === 'consulta_sql'; else standardCell">
+                                            <div style="display: flex; align-items: center; gap: 8px; max-width: 480px;">
+                                                <code style="background: #000; padding: 3px 6px; border-radius: 4px; color: #38bdf8; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">{{ row[key] }}</code>
+                                                <button type="button" (click)="copyQuerySql(row[key])" title="Copiar consulta SQL" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #cbd5e1; padding: 2px 7px; border-radius: 4px; font-size: 11px; cursor: pointer; white-space: nowrap;">📋 Copiar</button>
+                                            </div>
+                                        </ng-container>
+                                        <ng-template #standardCell>{{ row[key] }}</ng-template>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
                 <ng-template #noTableData>
                     <div style="text-align: center; padding: 40px 20px; background: rgba(0,0,0,0.2); border-radius: 12px; border: 1px dashed var(--border-subtle); color: var(--text-muted);">
