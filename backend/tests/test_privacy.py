@@ -7,9 +7,17 @@ os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 os.environ["DB_SCHEMA"] = ""
 
 from fastapi import HTTPException
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, scoped_session
 
-from app.db.session import SessionLocal
-from app.db.init_db import create_tables
+test_engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+TestingSessionLocal = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=test_engine))
+
+import app.db.session as app_session
+app_session.engine = test_engine
+app_session.SessionLocal = TestingSessionLocal
+
+from app.db.base import Base
 from app.models import User, Feedback, ChatMessage, AuditLog
 from app.core.config import settings
 from app.core.security import (
@@ -31,13 +39,15 @@ class TestPrivacy(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        create_tables()
+        Base.metadata.create_all(bind=test_engine)
 
     def setUp(self):
-        self.db = SessionLocal()
+        self.db = TestingSessionLocal()
         self.user = user_repo.create_user(
             db=self.db, username="priv_user", full_name="Priv User",
             hashed_password=get_password_hash("Secret123!"), role="Monitor",
+            email="priv_user@example.com",
+        )
             email="priv_user@example.com",
         )
         self.db.add(Feedback(user_id=self.user.id, rating=5, comment="hola"))

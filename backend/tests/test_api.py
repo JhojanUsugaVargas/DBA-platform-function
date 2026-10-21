@@ -6,6 +6,17 @@ os.environ["SECRET_KEY"] = "test-secret-key-12345"
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 os.environ["DB_SCHEMA"] = ""
 
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, scoped_session
+
+test_engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+TestingSessionLocal = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=test_engine))
+
+import app.db.session as app_session
+app_session.engine = test_engine
+app_session.SessionLocal = TestingSessionLocal
+
+from app.db.base import Base
 from app.core.config import settings
 from app.core.security import (
     verify_password,
@@ -15,8 +26,6 @@ from app.core.security import (
     encrypt_data,
     decrypt_data,
 )
-from app.db.session import SessionLocal, engine
-from app.db.init_db import create_tables
 from app.models import User, Contract, Instance
 from app.repositories import user_repo, contract_repo, chat_repo
 
@@ -25,10 +34,10 @@ class TestDataCheckCore(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        create_tables()
+        Base.metadata.create_all(bind=test_engine)
 
     def setUp(self):
-        self.db = SessionLocal()
+        self.db = TestingSessionLocal()
 
     def tearDown(self):
         self.db.close()
