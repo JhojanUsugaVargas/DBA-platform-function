@@ -1060,10 +1060,17 @@ Date: 2026-10-12`;
         let msg = `Usuario '${payload.username}' creado con éxito.`;
         if (res.invitation && res.invitation.sent) {
           msg += `\n📧 Se despachó el correo de invitación a ${payload.email} con las credenciales de acceso.`;
-        } else if (payload.password) {
-          msg += `\nContraseña configurada: ${payload.password}`;
+          this.toast.info(msg);
+        } else if (res.invitation && res.invitation.method === 'simulated') {
+          msg += `\n⚠️ No se envió correo real: el servidor SMTP no está configurado en el archivo .env del backend (envío simulado). Contraseña: ${payload.password || 'ChangeMe123!'}`;
+          this.toast.warning(msg);
+        } else if (res.invitation && res.invitation.method === 'smtp_error') {
+          msg += `\n⚠️ Error al enviar correo por SMTP (${res.invitation.detail}). Contraseña: ${payload.password || 'ChangeMe123!'}`;
+          this.toast.error(msg);
+        } else {
+          if (payload.password) msg += `\nContraseña configurada: ${payload.password}`;
+          this.toast.info(msg);
         }
-        this.toast.info(msg);
         this.isCreatingUser = false;
         this.userManagementTab = 'list';
         this.loadUsers();
@@ -1071,6 +1078,30 @@ Date: 2026-10-12`;
       error: (err) => {
         this.toast.error(err.error?.detail || "Error al crear usuario");
         this.isCreatingUser = false;
+      }
+    });
+  }
+
+  resendUserInvitation(user: any) {
+    if (!user.email) {
+      this.toast.warning(`El usuario '${user.username}' no tiene un correo electrónico registrado.`);
+      return;
+    }
+    this.toast.info(`Despachando credenciales a ${user.email}...`);
+    this.apiService.resendUserInvitation(user.id).subscribe({
+      next: (res) => {
+        if (res.invitation && res.invitation.sent) {
+          this.toast.info(`📧 Invitación reenviada exitosamente a ${user.email}.`);
+        } else if (res.invitation && res.invitation.method === 'simulated') {
+          this.toast.warning(`⚠️ Correo simulado: SMTP no configurado en backend (.env). Nueva contraseña asignada: ${res.temporary_password}`);
+        } else if (res.invitation && res.invitation.method === 'smtp_error') {
+          this.toast.error(`⚠️ Error SMTP: ${res.invitation.detail}. Nueva contraseña: ${res.temporary_password}`);
+        } else {
+          this.toast.info(res.message || 'Proceso finalizado.');
+        }
+      },
+      error: (err) => {
+        this.toast.error(err.error?.detail || "Error al reenviar invitación.");
       }
     });
   }

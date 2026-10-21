@@ -77,6 +77,16 @@ export class ApiService {
     return this.http.delete<any>(`${this.baseUrl}/admin/users/${userId}`);
   }
 
+  resendUserInvitation(userId: number, newPassword?: string): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/admin/users/${userId}/resend-invitation`, {
+      new_password: newPassword
+    });
+  }
+
+  getSmtpStatus(): Observable<any> {
+    return this.http.get<any>(`${this.baseUrl}/admin/system/smtp-status`);
+  }
+
   // Mantenimiento Global
   getMaintenanceStatus(): Observable<any> {
     return this.http.get<any>(`${this.baseUrl}/admin/system/maintenance`);

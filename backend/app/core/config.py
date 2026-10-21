@@ -47,11 +47,13 @@ class Settings:
     # AI / External services
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
 
-    # SMTP for OTP notifications
-    SMTP_SERVER: str = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+    # SMTP for Invitations and OTP notifications
+    SMTP_SERVER: str = os.getenv("SMTP_SERVER") or os.getenv("SMTP_HOST", "")
     SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
     SMTP_USER: str = os.getenv("SMTP_USER", "")
     SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
+    SMTP_FROM: str = os.getenv("SMTP_FROM", "")
+    SMTP_USE_TLS: bool = os.getenv("SMTP_USE_TLS", "true").lower() in ("true", "1", "yes")
     OTP_EXPIRE_SECONDS: int = int(os.getenv("OTP_EXPIRE_SECONDS", "120"))
 
     # Admin seed defaults

@@ -1,5 +1,6 @@
 """Administrative Management Endpoints."""
 from typing import List, Dict, Any, Optional
+from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -506,5 +507,86 @@ def delete_incident(
     )
 
     return {"success": True, "message": f"Ticket #{incident_id} eliminado exitosamente."}
+
+
+class ResendInvitationRequest(BaseModel):
+    new_password: Optional[str] = None
+
+
+class TestEmailRequest(BaseModel):
+    to_email: str
+
+
+@router.get("/system/smtp-status", summary="Get SMTP email configuration status")
+def get_smtp_status(
+    _: Dict[str, Any] = Depends(role_required("Administrador"))
+):
+    """Returns current SMTP connection settings and readiness."""
+    return email_service.check_smtp_status()
+
+
+@router.post("/system/test-email", summary="Send a test email via SMTP")
+def send_test_email(
+    req: TestEmailRequest,
+    _: Dict[str, Any] = Depends(role_required("Administrador"))
+):
+    """Sends a verification test email to validate SMTP configuration."""
+    res = email_service.send_user_invitation(
+        to_email=req.to_email,
+        username="test_admin",
+        full_name="Usuario de Prueba",
+        password="TestPassword123!",
+        role="Administrador"
+    )
+    return res
+
+
+@router.post("/users/{user_id}/resend-invitation", summary="Resend user credential email")
+def resend_user_invitation_endpoint(
+    user_id: int,
+    req: Optional[ResendInvitationRequest] = None,
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(role_required("Administrador"))
+):
+    """Resend onboarding credentials email to a user, optionally setting a new password."""
+    admin_username = _.get("username", "admin") if isinstance(_, dict) else "admin"
+    user = user_repo.get_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado.")
+
+    if not user.email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El usuario no tiene una dirección de correo registrada."
+        )
+
+    raw_password = (req.new_password.strip() if req and req.new_password and req.new_password.strip() else "DataCheck2026!*")
+    hashed = get_password_hash(raw_password)
+    user_repo.update_user_password(db, user.id, hashed)
+
+    invitation = email_service.send_user_invitation(
+        to_email=user.email.strip(),
+        username=user.username,
+        full_name=user.full_name or user.username,
+        password=raw_password,
+        role=user.role,
+        unsubscribe_url=f"{settings.PUBLIC_API_URL}/auth/unsubscribe?token={create_unsubscribe_token(user.username)}"
+    )
+
+    audit_repo.log_action(
+        db=db,
+        username=admin_username,
+        action="RESEND_USER_INVITATION",
+        status="SUCCESS" if invitation.get("sent") else "WARNING",
+        details=f"Invitación reenviada para '{user.username}' a '{user.email}'. Resultado: {invitation.get('method')} ({invitation.get('detail')})."
+    )
+
+    return {
+        "success": invitation.get("sent", False),
+        "message": "Invitación enviada exitosamente." if invitation.get("sent") else invitation.get("detail"),
+        "invitation": invitation,
+        "temporary_password": raw_password
+    }
+
 
 

@@ -8,6 +8,20 @@ from typing import Dict, Any, Optional
 from app.core.config import settings
 
 
+def check_smtp_status() -> Dict[str, Any]:
+    """Returns the current SMTP configuration status (without exposing secrets)."""
+    smtp_host = settings.SMTP_SERVER or os.getenv("SMTP_SERVER", "") or os.getenv("SMTP_HOST", "")
+    smtp_user = settings.SMTP_USER or os.getenv("SMTP_USER", "")
+    is_configured = bool(smtp_host and (smtp_user or os.getenv("SMTP_ALLOW_ANONYMOUS", "").lower() in ("1", "true", "yes")))
+    return {
+        "configured": is_configured,
+        "host": smtp_host or "No configurado",
+        "port": settings.SMTP_PORT,
+        "user": smtp_user or "No configurado",
+        "from_address": settings.SMTP_FROM or smtp_user or "soporte@datacheck.local"
+    }
+
+
 def send_user_invitation(
     to_email: str,
     username: str,
@@ -17,11 +31,11 @@ def send_user_invitation(
     unsubscribe_url: Optional[str] = None
 ) -> Dict[str, Any]:
     """Sends a professional onboarding and credential invitation email to a newly created user."""
-    smtp_host = os.getenv("SMTP_HOST", "")
-    smtp_port = int(os.getenv("SMTP_PORT", "587"))
-    smtp_user = os.getenv("SMTP_USER", "")
-    smtp_password = os.getenv("SMTP_PASSWORD", "")
-    smtp_from = os.getenv("SMTP_FROM", "soporte@datacheck.local")
+    smtp_host = settings.SMTP_SERVER or os.getenv("SMTP_SERVER", "") or os.getenv("SMTP_HOST", "")
+    smtp_port = settings.SMTP_PORT or int(os.getenv("SMTP_PORT", "587"))
+    smtp_user = settings.SMTP_USER or os.getenv("SMTP_USER", "")
+    smtp_password = settings.SMTP_PASSWORD or os.getenv("SMTP_PASSWORD", "")
+    smtp_from = settings.SMTP_FROM or os.getenv("SMTP_FROM", "") or smtp_user or "soporte@datacheck.local"
     access_url = settings.FRONTEND_URL
     unsubscribe_html = (
         f'<br><a href="{unsubscribe_url}" style="color:#67e8f9;">Darme de baja de estos correos</a>'
@@ -91,56 +105,62 @@ def send_user_invitation(
         f"{unsubscribe_plain}"
     )
 
-    if smtp_host:
-        try:
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = subject
-            msg["From"] = smtp_from
-            msg["To"] = to_email
-            if unsubscribe_url:
-                msg["List-Unsubscribe"] = f"<{unsubscribe_url}>"
-                msg["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
-            msg.attach(MIMEText(plain_content, "plain"))
-            msg.attach(MIMEText(html_content, "html"))
+    is_configured = bool(smtp_host and (smtp_user or os.getenv("SMTP_ALLOW_ANONYMOUS", "").lower() in ("1", "true", "yes")))
 
-            with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
-                server.starttls()
-                if smtp_user and smtp_password:
-                    server.login(smtp_user, smtp_password)
-                server.sendmail(smtp_from, [to_email], msg.as_string())
-
-            logging.info(f"Invitación por correo enviada con éxito a {to_email}")
-            return {"sent": True, "to": to_email, "method": "smtp", "detail": "Correo enviado vía SMTP."}
-        except Exception as exc:
-            logging.error(f"Error enviando correo SMTP a {to_email}: {exc}")
-            return {"sent": False, "to": to_email, "method": "smtp_error", "detail": str(exc)}
-    else:
-        # En entornos locales o de desarrollo sin SMTP configurado, simulación transparente y segura
-        logging.info(f"[SIMULATED EMAIL] Invitación generada para {to_email} ({username})")
+    if not is_configured:
+        logging.warning(
+            f"[SMTP NOT CONFIGURED] Invitación simulada para {to_email} ({username}). "
+            "El servidor SMTP no está configurado en el archivo .env del backend."
+        )
         return {
-            "sent": True,
+            "sent": False,
             "to": to_email,
             "method": "simulated",
-            "detail": f"Invitación despachada para {to_email} (servidor SMTP local simulado).",
+            "detail": "Servidor SMTP no configurado en el archivo .env del backend. El correo no pudo enviarse a internet.",
             "preview_subject": subject
         }
+
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = smtp_from
+        msg["To"] = to_email
+        if unsubscribe_url:
+            msg["List-Unsubscribe"] = f"<{unsubscribe_url}>"
+            msg["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
+        msg.attach(MIMEText(plain_content, "plain"))
+        msg.attach(MIMEText(html_content, "html"))
+
+        with smtplib.SMTP(smtp_host, smtp_port, timeout=12) as server:
+            if settings.SMTP_USE_TLS:
+                server.starttls()
+            if smtp_user and smtp_password:
+                server.login(smtp_user, smtp_password)
+            server.sendmail(smtp_from, [to_email], msg.as_string())
+
+        logging.info(f"Invitación por correo enviada con éxito a {to_email}")
+        return {"sent": True, "to": to_email, "method": "smtp", "detail": f"Correo enviado exitosamente vía {smtp_host}."}
+    except Exception as exc:
+        logging.error(f"Error enviando correo SMTP a {to_email}: {exc}")
+        return {"sent": False, "to": to_email, "method": "smtp_error", "detail": f"Error SMTP ({smtp_host}): {str(exc)}"}
 
 
 def send_otp_email(to_email: str, code: str) -> bool:
     """Dispatches a one-time MFA login code via email."""
-    smtp_server = settings.SMTP_SERVER or os.getenv("SMTP_SERVER", "")
+    smtp_server = settings.SMTP_SERVER or os.getenv("SMTP_SERVER", "") or os.getenv("SMTP_HOST", "")
     smtp_port = settings.SMTP_PORT or 587
     smtp_user = settings.SMTP_USER or os.getenv("SMTP_USER", "")
     smtp_password = settings.SMTP_PASSWORD or os.getenv("SMTP_PASSWORD", "")
+    smtp_from = settings.SMTP_FROM or smtp_user or "soporte@datacheck.local"
 
-    if not smtp_user:
-        logging.info(f"[SIMULATED OTP EMAIL] Código {code} generado para {to_email}")
+    if not (smtp_server and (smtp_user or os.getenv("SMTP_ALLOW_ANONYMOUS", "").lower() in ("1", "true", "yes"))):
+        logging.info(f"[SIMULATED OTP EMAIL] Código {code} generado para {to_email} (SMTP no configurado)")
         return False
 
     try:
         msg = MIMEMultipart("alternative")
         msg["Subject"] = "DataCheck Pro - Código de Verificación OTP"
-        msg["From"] = smtp_user
+        msg["From"] = smtp_from
         msg["To"] = to_email
 
         html = f"""
@@ -153,10 +173,12 @@ def send_otp_email(to_email: str, code: str) -> bool:
         msg.attach(MIMEText(f"Tu código OTP es: {code}", "plain"))
         msg.attach(MIMEText(html, "html"))
 
-        with smtplib.SMTP(smtp_server, smtp_port, timeout=10) as s:
-            s.starttls()
-            s.login(smtp_user, smtp_password)
-            s.sendmail(smtp_user, [to_email], msg.as_string())
+        with smtplib.SMTP(smtp_server, smtp_port, timeout=12) as s:
+            if settings.SMTP_USE_TLS:
+                s.starttls()
+            if smtp_user and smtp_password:
+                s.login(smtp_user, smtp_password)
+            s.sendmail(smtp_from, [to_email], msg.as_string())
         return True
     except Exception as exc:
         logging.warning(f"No se pudo enviar email OTP a {to_email}: {exc}")
