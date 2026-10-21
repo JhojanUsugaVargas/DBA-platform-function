@@ -107,6 +107,32 @@ def check_and_create_alerts(
             db.add(alert)
             db.flush()
 
+            # Check if alert is within an active maintenance blackout window
+            in_blackout = False
+            try:
+                from app.models.maintenance_window import MaintenanceWindow
+                from sqlalchemy import or_
+                active_blackout = db.query(MaintenanceWindow).filter(
+                    MaintenanceWindow.is_active == True,
+                    MaintenanceWindow.start_time <= now,
+                    MaintenanceWindow.end_time >= now,
+                    or_(
+                        MaintenanceWindow.instance_id == instance.id,
+                        MaintenanceWindow.instance_id.is_(None)
+                    )
+                ).first()
+                if active_blackout:
+                    in_blackout = True
+                    alert.title = f"[🔕 Silenciada] {alert.title}"
+                    alert.message = f"{alert.message} (Ocurrida durante ventana de mantenimiento: '{active_blackout.title}')."
+                    logging.info("Alerta para %s silenciada por ventana de mantenimiento: %s", instance.name, active_blackout.title)
+            except Exception as black_exc:
+                logging.warning("Error verificando ventana de mantenimiento: %s", black_exc)
+
+            if in_blackout:
+                # Skip dispatching notifications during blackout periods
+                continue
+
             # Find administrator recipients for alert notification
             admins = db.query(User).filter(
                 User.role.in_(["Administrador", "Admin"]),

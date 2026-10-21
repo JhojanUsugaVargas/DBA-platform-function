@@ -839,11 +839,13 @@ class QueryDiagnosePayload(BaseModel):
 @router.get("/alerts", summary="List system proactive alerts")
 def get_system_alerts(
     unread_only: bool = Query(False),
+    severity: Optional[str] = Query(None),
+    metric: Optional[str] = Query(None),
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Retrieve recent proactive telemetry alerts for notification bell."""
+    """Retrieve recent proactive telemetry alerts for notification bell and alert center."""
     from app.models.alert import SystemAlert
     from app.models.contract import Instance
 
@@ -852,6 +854,10 @@ def get_system_alerts(
 
     if unread_only:
         query = query.filter(SystemAlert.is_read == False)
+    if severity and severity.strip():
+        query = query.filter(SystemAlert.severity == severity.strip().upper())
+    if metric and metric.strip():
+        query = query.filter(SystemAlert.metric_name == metric.strip().upper())
 
     results = query.order_by(SystemAlert.created_at.desc()).limit(limit).all()
 
@@ -992,6 +998,182 @@ def get_instance_health_score(
         raise HTTPException(status_code=404, detail="Instancia no encontrada")
 
     return calculate_instance_health_score(instance=inst, db=db)
+
+
+# --------------------------------------------------------------------------
+# Centro de Alertas: Estadísticas Globales NOC
+# --------------------------------------------------------------------------
+@router.get("/alerts/stats", summary="Get aggregated alert stats for NOC Center")
+def get_alert_stats(
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(get_current_user)
+):
+    """Returns statistics for Alert Center dashboard."""
+    from app.models.alert import SystemAlert
+    total = db.query(SystemAlert).count()
+    unread = db.query(SystemAlert).filter(SystemAlert.is_read == False).count()
+    critical = db.query(SystemAlert).filter(SystemAlert.severity == "CRITICAL").count()
+    warning = db.query(SystemAlert).filter(SystemAlert.severity == "WARNING").count()
+    silenced = db.query(SystemAlert).filter(SystemAlert.title.like("%[🔕 Silenciada]%")).count()
+    return {
+        "total": total,
+        "unread": unread,
+        "critical": critical,
+        "warning": warning,
+        "silenced": silenced
+    }
+
+
+# --------------------------------------------------------------------------
+# Recomendador de Índices Faltantes de Alto Impacto
+# --------------------------------------------------------------------------
+@router.get("/missing-indexes", summary="Get high-impact missing index recommendations")
+def get_missing_indexes_endpoint(
+    user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Identifica índices faltantes de alto impacto y genera los scripts DDL recomendados."""
+    from app.services.dba_queries.missing_indexes import query_missing_indexes
+    try:
+        with remote_cursor(user["username"]) as (cursor, engine):
+            return {
+                "type": "table",
+                "title": "Recomendaciones de Índices Faltantes de Alto Impacto",
+                "message": "Se identificaron índices con impacto estimado superior al 50% en las DMVs del motor.",
+                "data": query_missing_indexes(cursor, engine)
+            }
+    except Exception as exc:
+        return {
+            "type": "table",
+            "title": "Recomendaciones de Índices Faltantes (Modo Simulación)",
+            "message": f"Mostrando índices sugeridos basados en telemetría ({str(exc)}).",
+            "data": query_missing_indexes(None, "sqlserver")
+        }
+
+
+# --------------------------------------------------------------------------
+# Detector de Desviación de Configuración (Instance Configuration Drift)
+# --------------------------------------------------------------------------
+@router.get("/config-drift", summary="Get instance configuration drift vs DBA best practices")
+def get_config_drift_endpoint(
+    user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Compara parámetros del motor contra las mejores prácticas para detectar Configuration Drift."""
+    from app.services.dba_queries.config_drift import query_configuration_drift
+    try:
+        with remote_cursor(user["username"]) as (cursor, engine):
+            return {
+                "type": "table",
+                "title": "Diagnóstico de Configuración & Drift",
+                "message": "Evaluación de parámetros de hardware, paralelismo y memoria del motor.",
+                "data": query_configuration_drift(cursor, engine)
+            }
+    except Exception as exc:
+        return {
+            "type": "table",
+            "title": "Diagnóstico de Configuración & Drift (Modo Simulación)",
+            "message": f"Mostrando análisis de configuración estimado ({str(exc)}).",
+            "data": query_configuration_drift(None, "sqlserver")
+        }
+
+
+# --------------------------------------------------------------------------
+# Ventanas de Mantenimiento & Períodos de Silenciamiento (Blackout Periods)
+# --------------------------------------------------------------------------
+class CreateMaintenanceWindowPayload(BaseModel):
+    instance_id: Optional[int] = None
+    title: str
+    reason: Optional[str] = None
+    start_time: str
+    end_time: str
+
+
+@router.get("/maintenance-windows", summary="List blackout maintenance windows")
+def list_maintenance_windows(
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(get_current_user)
+):
+    """Retrieve all scheduled and active alert blackout maintenance windows."""
+    from app.models.maintenance_window import MaintenanceWindow
+    from app.models.contract import Instance
+    now = datetime.now(timezone.utc)
+    windows = db.query(MaintenanceWindow, Instance.name.label("instance_name"))\
+        .outerjoin(Instance, MaintenanceWindow.instance_id == Instance.id)\
+        .order_by(MaintenanceWindow.start_time.desc()).all()
+
+    res = []
+    for w, inst_name in windows:
+        # Standardize timezone comparison
+        w_st = w.start_time if w.start_time.tzinfo else w.start_time.replace(tzinfo=timezone.utc)
+        w_et = w.end_time if w.end_time.tzinfo else w.end_time.replace(tzinfo=timezone.utc)
+        is_active_now = w.is_active and (w_st <= now <= w_et)
+        res.append({
+            "id": w.id,
+            "instance_id": w.instance_id,
+            "instance_name": inst_name or "Todas las Instancias (Global)",
+            "title": w.title,
+            "reason": w.reason,
+            "start_time": w.start_time.isoformat() if w.start_time else None,
+            "end_time": w.end_time.isoformat() if w.end_time else None,
+            "is_active": w.is_active,
+            "is_currently_active": is_active_now,
+            "created_by": w.created_by,
+            "created_at": w.created_at.isoformat() if w.created_at else None
+        })
+    return res
+
+
+@router.post("/maintenance-windows", summary="Create a blackout maintenance window")
+def create_maintenance_window_endpoint(
+    payload: CreateMaintenanceWindowPayload,
+    db: Session = Depends(get_db),
+    user: Dict[str, Any] = Depends(role_required(["Administrador", "DBA Principal"]))
+):
+    """Schedule a maintenance window to silence alert dispatching during host activities."""
+    from app.models.maintenance_window import MaintenanceWindow
+    try:
+        s_clean = payload.start_time.replace("Z", "+00:00")
+        e_clean = payload.end_time.replace("Z", "+00:00")
+        st = datetime.fromisoformat(s_clean)
+        et = datetime.fromisoformat(e_clean)
+        if not st.tzinfo:
+            st = st.replace(tzinfo=timezone.utc)
+        if not et.tzinfo:
+            et = et.replace(tzinfo=timezone.utc)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Formato de fecha inválido. Ingrese una fecha válida ISO 8601.")
+
+    if et <= st:
+        raise HTTPException(status_code=400, detail="La fecha de finalización debe ser posterior a la fecha de inicio.")
+
+    mw = MaintenanceWindow(
+        instance_id=payload.instance_id,
+        title=payload.title.strip(),
+        reason=(payload.reason or "").strip(),
+        start_time=st,
+        end_time=et,
+        is_active=True,
+        created_by=user.get("username", "admin")
+    )
+    db.add(mw)
+    db.commit()
+    db.refresh(mw)
+    return {"success": True, "id": mw.id, "message": f"Ventana de mantenimiento '{mw.title}' programada exitosamente."}
+
+
+@router.delete("/maintenance-windows/{window_id}", summary="Delete a maintenance window")
+def delete_maintenance_window_endpoint(
+    window_id: int,
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(role_required(["Administrador", "DBA Principal"]))
+):
+    """Cancel and delete a scheduled blackout maintenance window."""
+    from app.models.maintenance_window import MaintenanceWindow
+    mw = db.query(MaintenanceWindow).filter(MaintenanceWindow.id == window_id).first()
+    if not mw:
+        raise HTTPException(status_code=404, detail="Ventana de mantenimiento no encontrada.")
+    db.delete(mw)
+    db.commit()
+    return {"success": True, "message": "Ventana de mantenimiento eliminada exitosamente."}
 
 
 

@@ -10,6 +10,7 @@ from app.models.incident import Incident
 from app.models.system_maintenance import SystemMaintenance
 from app.models.user_preference import UserPreference
 from app.models.alert import SystemAlert
+from app.models.maintenance_window import MaintenanceWindow
 
 __all__ = [
     "Base",
@@ -25,4 +26,5 @@ __all__ = [
     "SystemMaintenance",
     "UserPreference",
     "SystemAlert",
+    "MaintenanceWindow",
 ]

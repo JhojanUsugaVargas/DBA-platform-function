@@ -98,4 +98,32 @@ export class DbaService {
   getInstanceHealthScore(instanceId: number): Observable<any> {
     return this.http.get<any>(`${this.baseUrl}/instances/${instanceId}/health-score`);
   }
+
+  getMissingIndexes(): Observable<DbaActionResponse> {
+    return this.http.get<DbaActionResponse>(`${this.baseUrl}/missing-indexes`);
+  }
+
+  getConfigDrift(): Observable<DbaActionResponse> {
+    return this.http.get<DbaActionResponse>(`${this.baseUrl}/config-drift`);
+  }
+
+  getMaintenanceWindows(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/maintenance-windows`);
+  }
+
+  createMaintenanceWindow(payload: any): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/maintenance-windows`, payload);
+  }
+
+  deleteMaintenanceWindow(id: number): Observable<any> {
+    return this.http.delete<any>(`${this.baseUrl}/maintenance-windows/${id}`);
+  }
+
+  getAlertStats(): Observable<any> {
+    return this.http.get<any>(`${this.baseUrl}/alerts/stats`);
+  }
+
+  getSystemAlertsFiltered(params: { unread_only?: boolean; severity?: string; metric?: string; limit?: number }): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/alerts`, { params: params as any });
+  }
 }

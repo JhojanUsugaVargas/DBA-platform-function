@@ -243,6 +243,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     { key: 'alwayson', label: 'Nodos AlwaysOn / Réplicas', icon: '🔗' },
     { key: 'performance', label: 'Performance General', icon: '📈' },
     { key: 'topqueries', label: 'Top Consultas Lentas', icon: '🔥' },
+    { key: 'missing_indexes', label: 'Índices Faltantes (Recomendador)', icon: '⚡' },
+    { key: 'config_drift', label: 'Desviación Config (Drift)', icon: '🔍' },
     { key: 'datalog', label: 'Validar Data y Log', icon: '🔍' },
     { key: 'backups', label: 'Estado de Respaldos (Backups)', icon: '💾' },
     { key: 'cancelar', label: 'Forzar Cancelación (Kill)', icon: '❌' }
@@ -278,6 +280,30 @@ export class DashboardComponent implements OnInit, OnDestroy {
   killSpid: string = '';
   killReason: string = '';
   isExecutingKill: boolean = false;
+
+  // Centro de Alertas & NOC State
+  isAlertCenterModalOpen: boolean = false;
+  alertCenterFilterSeverity: string = '';
+  alertCenterFilterMetric: string = '';
+  alertCenterAlerts: any[] = [];
+  alertCenterStats: any = null;
+  isAlertCenterLoading: boolean = false;
+
+  // Ventanas de Mantenimiento & Blackout Periods State
+  isBlackoutModalOpen: boolean = false;
+  blackoutWindows: any[] = [];
+  isBlackoutLoading: boolean = false;
+  newBlackoutForm = {
+    instance_id: null as number | null,
+    title: '',
+    reason: '',
+    start_time: '',
+    end_time: ''
+  };
+  isCreatingBlackout: boolean = false;
+
+  // Modo Guardia On-Call Móvil State
+  isOnCallModalOpen: boolean = false;
 
   constructor(
     private router: Router,
@@ -1507,6 +1533,8 @@ Date: 2026-10-12`;
       case 'pg_autovacuum': actionObs = this.dbaService.getMaintenance(); break;
       case 'backups': actionObs = this.dbaService.getBackups(); break;
       case 'topqueries': actionObs = this.dbaService.getTopQueries(); break;
+      case 'missing_indexes': actionObs = this.dbaService.getMissingIndexes(); break;
+      case 'config_drift': actionObs = this.dbaService.getConfigDrift(); break;
       case 'cancelar': 
         this.isLoadingAction = false;
         if (!this.canCancelQueries) {
@@ -2468,5 +2496,147 @@ Date: 2026-10-12`;
         this.toast.error(err.error?.detail || err.error?.message || 'Fallo al forzar la cancelación de la sesión.');
       }
     });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Centro de Alertas & NOC
+  // ---------------------------------------------------------------------------
+  openAlertCenterModal(): void {
+    this.isAlertCenterModalOpen = true;
+    this.isNotificationsDropdownOpen = false;
+    this.loadAlertCenterData();
+  }
+
+  loadAlertCenterData(): void {
+    this.isAlertCenterLoading = true;
+    this.dbaService.getAlertStats().subscribe({
+      next: (stats) => this.alertCenterStats = stats,
+      error: () => {}
+    });
+
+    const params: any = { limit: 100 };
+    if (this.alertCenterFilterSeverity) params.severity = this.alertCenterFilterSeverity;
+    if (this.alertCenterFilterMetric) params.metric = this.alertCenterFilterMetric;
+
+    this.dbaService.getSystemAlertsFiltered(params).subscribe({
+      next: (alerts) => {
+        this.alertCenterAlerts = alerts;
+        this.isAlertCenterLoading = false;
+      },
+      error: (err) => {
+        this.isAlertCenterLoading = false;
+        this.toast.error(err.error?.detail || 'Error al cargar historial de alertas.');
+      }
+    });
+  }
+
+  closeAlertCenterModal(): void {
+    this.isAlertCenterModalOpen = false;
+  }
+
+  exportAlertsToCsv(): void {
+    if (!this.alertCenterAlerts || this.alertCenterAlerts.length === 0) {
+      this.toast.warning('No hay alertas para exportar.');
+      return;
+    }
+    const headers = ['ID', 'Fecha', 'Instancia', 'Severidad', 'Métrica', 'Título', 'Mensaje', 'Valor Actual', 'Umbral', 'Leída'];
+    const rows = this.alertCenterAlerts.map(a => [
+      a.id,
+      `"${a.created_at || ''}"`,
+      `"${a.instance_name || ''}"`,
+      a.severity,
+      a.metric_name,
+      `"${(a.title || '').replace(/"/g, '""')}"`,
+      `"${(a.message || '').replace(/"/g, '""')}"`,
+      `"${a.current_value || ''}"`,
+      `"${a.threshold_value || ''}"`,
+      a.is_read ? 'Sí' : 'No'
+    ]);
+
+    const csvContent = '\uFEFF' + [headers, ...rows].map(e => e.join(';')).join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Alertas_DBA_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    this.toast.success('Historial de alertas exportado en CSV.');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Ventanas de Mantenimiento & Blackout Periods
+  // ---------------------------------------------------------------------------
+  openBlackoutModal(): void {
+    this.isBlackoutModalOpen = true;
+    this.loadBlackoutWindows();
+  }
+
+  loadBlackoutWindows(): void {
+    this.isBlackoutLoading = true;
+    this.dbaService.getMaintenanceWindows().subscribe({
+      next: (res) => {
+        this.blackoutWindows = res;
+        this.isBlackoutLoading = false;
+      },
+      error: (err) => {
+        this.isBlackoutLoading = false;
+        this.toast.error(err.error?.detail || 'Error al cargar ventanas de mantenimiento.');
+      }
+    });
+  }
+
+  closeBlackoutModal(): void {
+    this.isBlackoutModalOpen = false;
+  }
+
+  submitBlackoutWindow(): void {
+    if (!this.newBlackoutForm.title.trim()) {
+      this.toast.warning('Ingresa un título para la ventana de mantenimiento.');
+      return;
+    }
+    if (!this.newBlackoutForm.start_time || !this.newBlackoutForm.end_time) {
+      this.toast.warning('Ingresa la fecha/hora de inicio y fin.');
+      return;
+    }
+    if (new Date(this.newBlackoutForm.end_time) <= new Date(this.newBlackoutForm.start_time)) {
+      this.toast.warning('La fecha de fin debe ser posterior al inicio.');
+      return;
+    }
+
+    this.isCreatingBlackout = true;
+    this.dbaService.createMaintenanceWindow(this.newBlackoutForm).subscribe({
+      next: (res) => {
+        this.isCreatingBlackout = false;
+        this.toast.success(res.message || 'Ventana de mantenimiento programada exitosamente.');
+        this.newBlackoutForm = { instance_id: null, title: '', reason: '', start_time: '', end_time: '' };
+        this.loadBlackoutWindows();
+      },
+      error: (err) => {
+        this.isCreatingBlackout = false;
+        this.toast.error(err.error?.detail || 'Error al programar ventana.');
+      }
+    });
+  }
+
+  deleteBlackoutWindow(id: number): void {
+    if (!confirm('¿Deseas cancelar esta ventana de mantenimiento?')) return;
+    this.dbaService.deleteMaintenanceWindow(id).subscribe({
+      next: () => {
+        this.toast.info('Ventana de mantenimiento eliminada.');
+        this.loadBlackoutWindows();
+      },
+      error: (err) => {
+        this.toast.error(err.error?.detail || 'Error al eliminar ventana.');
+      }
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Modo Guardia On-Call Móvil HUD
+  // ---------------------------------------------------------------------------
+  toggleOnCallModal(): void {
+    this.isOnCallModalOpen = !this.isOnCallModalOpen;
   }
 }
