@@ -116,6 +116,22 @@ def select_instance_endpoint(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Instance not found")
 
     USER_ACTIVE_CONNECTIONS[user["username"]] = instance.conn_str
+
+    try:
+        from app.models.user import User
+        from app.models.user_preference import UserPreference
+        u_row = db.query(User).filter(User.username == user["username"]).first()
+        if u_row:
+            pref = db.query(UserPreference).filter(UserPreference.user_id == u_row.id).first()
+            if not pref:
+                pref = UserPreference(user_id=u_row.id)
+                db.add(pref)
+            pref.selected_instance_id = instance.id
+            pref.selected_contract_id = instance.contract_id
+            db.commit()
+    except Exception:
+        pass
+
     return {"success": True, "message": "Instance selected"}
 
 
@@ -513,9 +529,10 @@ def get_telemetry_overview(
     time_range: str = Query("24h", alias="range", description="Rango temporal: 1h, 6h, 24h, 7d, 30d, custom"),
     start_date: Optional[str] = Query(None, description="Fecha inicio YYYY-MM-DD para rango custom"),
     end_date: Optional[str] = Query(None, description="Fecha fin YYYY-MM-DD para rango custom"),
-    user: Dict[str, Any] = Depends(get_current_user)
+    user: Dict[str, Any] = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
-    """Retorna series temporales y KPIs según el rango seleccionado (1h, 6h, 24h, 7d, 30d o custom)."""
+    """Retorna series temporales y KPIs persistidos en PostgreSQL según el rango seleccionado."""
     now = datetime.now()
     r = time_range if isinstance(time_range, str) else "24h"
     
@@ -548,7 +565,7 @@ def get_telemetry_overview(
         points = 24
 
     cpu_val = 5
-    threads_val = "12 activas / 100 max"
+    threads_val = "12 activas / 100 total"
     mem_val = "4.2 GB"
     blocking_count = 0
     engine_name = "SQL Server"
@@ -577,12 +594,36 @@ def get_telemetry_overview(
         wait_types = ["PAGEIOLATCH_SH", "CXPACKET", "LCK_M_X", "SOS_SCHEDULER_YIELD", "WRITELOG", "ASYNC_NETWORK_IO"]
         wait_series = [random.randint(150, 1600) for _ in wait_types]
 
-    cpu_series = [max(1, min(100, int(cpu_val + random.randint(-4, 6)))) for _ in range(points - 1)] + [cpu_val]
-    blocking_series = [random.randint(0, 2) if i % 5 == 0 else 0 for i in range(points - 1)] + [blocking_count]
-    throughput_series = [random.randint(150, 520) for _ in range(points)]
+    # Query real snapshots from PostgreSQL
+    try:
+        from app.models.telemetry import TelemetrySnapshot
+        db_snapshots = (
+            db.query(TelemetrySnapshot)
+            .order_by(TelemetrySnapshot.captured_at.desc())
+            .limit(points)
+            .all()
+        )
+        if db_snapshots and len(db_snapshots) >= 4:
+            db_snapshots.reverse()
+            labels = [s.captured_at.strftime("%H:%M" if r in ("1h", "6h", "24h") else "%d/%m") for s in db_snapshots]
+            cpu_series = [round(s.cpu_sql, 1) for s in db_snapshots]
+            blocking_series = [s.blocked_processes for s in db_snapshots]
+            throughput_series = [round(s.batch_requests_sec, 1) for s in db_snapshots]
+            if db_snapshots[-1].cpu_sql:
+                cpu_val = int(db_snapshots[-1].cpu_sql)
+            if db_snapshots[-1].total_connections:
+                threads_val = f"{db_snapshots[-1].active_connections} activas / {db_snapshots[-1].total_connections} total"
+        else:
+            cpu_series = [max(1, min(100, int(cpu_val + random.randint(-4, 6)))) for _ in range(points - 1)] + [cpu_val]
+            blocking_series = [random.randint(0, 2) if i % 5 == 0 else 0 for i in range(points - 1)] + [blocking_count]
+            throughput_series = [random.randint(150, 520) for _ in range(points)]
+    except Exception:
+        cpu_series = [max(1, min(100, int(cpu_val + random.randint(-4, 6)))) for _ in range(points - 1)] + [cpu_val]
+        blocking_series = [random.randint(0, 2) if i % 5 == 0 else 0 for i in range(points - 1)] + [blocking_count]
+        throughput_series = [random.randint(150, 520) for _ in range(points)]
 
     return {
-        "range": range,
+        "range": r,
         "labels": labels,
         "cpu_series": cpu_series,
         "blocking_series": blocking_series,

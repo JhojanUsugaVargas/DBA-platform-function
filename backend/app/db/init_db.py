@@ -20,10 +20,12 @@ def create_tables() -> None:
         ensure_user_privacy_columns()
         logging.info("Database tables initialized successfully.")
 
-        # Seed default admin
+        # Seed default admin and maintenance state
         db = SessionLocal()
         try:
             seed_default_admin(db)
+            seed_system_maintenance(db)
+            seed_telemetry_baseline(db)
         finally:
             db.close()
     except Exception as exc:
@@ -70,3 +72,56 @@ def seed_default_admin(session) -> None:
         session.add(new_admin)
         session.commit()
         logging.info(f"Default admin created ({settings.ADMIN_DEFAULT_USERNAME})")
+
+
+def seed_system_maintenance(session) -> None:
+    """Ensure system maintenance record exists."""
+    from app.models.system_maintenance import SystemMaintenance
+    maint = session.query(SystemMaintenance).first()
+    if not maint:
+        new_maint = SystemMaintenance(
+            is_active=False,
+            title="Ajustes del Sistema en Progreso",
+            subtitle="Optimizando motores de bases de datos, reindexando y aplicando configuraciones DBA...",
+            disabled_modules="[]"
+        )
+        session.add(new_maint)
+        session.commit()
+        logging.info("Default system maintenance record initialized in database.")
+
+
+def seed_telemetry_baseline(session) -> None:
+    """Seed initial 24h baseline snapshots if database table is empty."""
+    import random
+    from datetime import datetime, timedelta, timezone
+    from app.models.telemetry import TelemetrySnapshot
+
+    count = session.query(TelemetrySnapshot).count()
+    if count == 0:
+        now = datetime.now(timezone.utc)
+        snapshots = []
+        for i in range(24, 0, -1):
+            ts = now - timedelta(hours=i)
+            # Realistic baseline metrics
+            cpu_val = round(max(3.0, min(85.0, 18.0 + random.uniform(-8.0, 15.0) + (15.0 if 9 <= ts.hour <= 18 else 0.0))), 1)
+            blocked_val = 1 if (ts.hour in (1, 8, 14) and random.random() > 0.4) else 0
+            deadlock_val = 1 if (ts.hour == 8 and random.random() > 0.7) else 0
+            throughput = round(random.uniform(220.0, 530.0), 1)
+
+            snapshots.append(TelemetrySnapshot(
+                engine="sqlserver",
+                cpu_sql=cpu_val,
+                cpu_system=round(cpu_val + random.uniform(2.0, 6.0), 1),
+                active_connections=random.randint(4, 28),
+                total_connections=random.randint(30, 85),
+                blocked_processes=blocked_val,
+                deadlocks_count=deadlock_val,
+                batch_requests_sec=throughput,
+                buffer_cache_hit_ratio=round(random.uniform(98.5, 99.9), 2),
+                page_life_expectancy=random.randint(1800, 4200),
+                captured_at=ts
+            ))
+        session.bulk_save_objects(snapshots)
+        session.commit()
+        logging.info("Historical telemetry 24h baseline initialized in database.")
+

@@ -46,8 +46,29 @@ def get_active_engine_type(username: str) -> str:
 
 
 def get_active_conn(username: str):
-    """Retrieve raw active database connection for user."""
+    """Retrieve raw active database connection for user, restoring from DB if needed."""
     conn_str = USER_ACTIVE_CONNECTIONS.get(username)
+    if not conn_str:
+        try:
+            from app.db.session import SessionLocal
+            from app.models.user import User
+            from app.models.user_preference import UserPreference
+            from app.models.contract import Instance
+            db = SessionLocal()
+            try:
+                u = db.query(User).filter(User.username == username).first()
+                if u:
+                    pref = db.query(UserPreference).filter(UserPreference.user_id == u.id).first()
+                    if pref and pref.selected_instance_id:
+                        inst = db.query(Instance).filter(Instance.id == pref.selected_instance_id).first()
+                        if inst:
+                            conn_str = inst.conn_str
+                            USER_ACTIVE_CONNECTIONS[username] = conn_str
+            finally:
+                db.close()
+        except Exception:
+            pass
+
     if not conn_str:
         raise NoInstanceSelected("No hay instancia seleccionada")
     return get_remote_db_connection(conn_str)
