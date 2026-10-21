@@ -656,4 +656,61 @@ def resend_user_invitation_endpoint(
     }
 
 
+class TestWebhookPayload(BaseModel):
+    webhook_type: str = "teams"
+    webhook_url: Optional[str] = None
+
+
+@router.post("/system/test-webhook", summary="Send a test notification to Teams or Slack webhook")
+def test_webhook_endpoint(
+    req: TestWebhookPayload,
+    _: Dict[str, Any] = Depends(role_required("Administrador"))
+):
+    """Sends a verification test alert via Microsoft Teams or Slack webhook."""
+    from app.services.webhook_service import send_teams_alert, send_slack_alert
+    from app.core.config import settings
+
+    target_url = (req.webhook_url or "").strip()
+    if not target_url:
+        if req.webhook_type.lower() == "slack":
+            target_url = settings.SLACK_WEBHOOK_URL
+        else:
+            target_url = settings.TEAMS_WEBHOOK_URL
+
+    if not target_url:
+        return {
+            "success": False,
+            "message": f"No se ha configurado ninguna URL para el webhook de {req.webhook_type.upper()}. Configura la variable de entorno o envía la URL en el payload."
+        }
+
+    if req.webhook_type.lower() == "slack":
+        sent = send_slack_alert(
+            webhook_url=target_url,
+            instance_name="SQL-PROD-01 (Prueba)",
+            metric_name="CPU",
+            severity="WARNING",
+            current_value="88.5%",
+            threshold_value="85.0%",
+            title="Prueba de Webhook de Alertas - Slack",
+            message="Este es un mensaje de prueba emitido por DataCheck Pro para validar la integración de alertas con tu canal de Slack."
+        )
+    else:
+        sent = send_teams_alert(
+            webhook_url=target_url,
+            instance_name="SQL-PROD-01 (Prueba)",
+            metric_name="CPU",
+            severity="WARNING",
+            current_value="88.5%",
+            threshold_value="85.0%",
+            title="Prueba de Webhook de Alertas - Microsoft Teams",
+            message="Este es un mensaje de prueba emitido por DataCheck Pro para validar la integración de alertas con tu canal de Teams."
+        )
+
+    return {
+        "success": sent,
+        "webhook_type": req.webhook_type,
+        "message": f"Webhook enviado exitosamente a {req.webhook_type.upper()}." if sent else f"Error al despachar webhook a {req.webhook_type.upper()}. Verifica la URL y la conectividad de red."
+    }
+
+
 

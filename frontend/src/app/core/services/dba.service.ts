@@ -86,4 +86,16 @@ export class DbaService {
   getTopQueries(): Observable<DbaActionResponse> {
     return this.http.get<DbaActionResponse>(`${this.baseUrl}/top-queries`);
   }
+
+  cancelSession(spid: string, reason: string): Observable<DbaActionResponse> {
+    return this.http.post<DbaActionResponse>(`${this.baseUrl}/cancelar`, { spid, reason });
+  }
+
+  getHealthScore(): Observable<any> {
+    return this.http.get<any>(`${this.baseUrl}/health-score`);
+  }
+
+  getInstanceHealthScore(instanceId: number): Observable<any> {
+    return this.http.get<any>(`${this.baseUrl}/instances/${instanceId}/health-score`);
+  }
 }

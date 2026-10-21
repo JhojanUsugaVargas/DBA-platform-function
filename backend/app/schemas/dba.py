@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 class CancelSessionRequest(BaseModel):
     spid: str = ""
+    reason: str = ""
 
 
 class HistoricalCpuResponse(BaseModel):

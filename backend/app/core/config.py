@@ -61,6 +61,8 @@ class Settings:
     ALERT_DEADLOCK_THRESHOLD: int = int(os.getenv("ALERT_DEADLOCK_THRESHOLD", "0"))
     ALERT_BUFFER_CACHE_THRESHOLD: float = float(os.getenv("ALERT_BUFFER_CACHE_THRESHOLD", "90.0"))
     ALERT_NOTIFICATION_EMAIL: str = os.getenv("ALERT_NOTIFICATION_EMAIL", "")
+    TEAMS_WEBHOOK_URL: str = os.getenv("TEAMS_WEBHOOK_URL", "")
+    SLACK_WEBHOOK_URL: str = os.getenv("SLACK_WEBHOOK_URL", "")
 
     # Retention & Auto-Purge Policy
     METRICS_RETENTION_DAYS: int = int(os.getenv("METRICS_RETENTION_DAYS", "30"))

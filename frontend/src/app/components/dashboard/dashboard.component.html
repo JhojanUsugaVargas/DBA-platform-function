@@ -229,6 +229,9 @@
                     </div>
                 </div>
 
+                <button (click)="openHealthScoreModal()" title="Score de Salud Global y Diagnóstico Ejecutivo (0 - 100 pts)" style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.35); color: #34d399; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 6px; font-weight: 600;">
+                    🩺 <span>Health Score</span>
+                </button>
                 <button (click)="loadTelemetryOverview()" title="Refrescar Telemetría" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: var(--text-primary); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 6px;">
                     🔄 <span>Refrescar</span>
                 </button>
@@ -514,6 +517,32 @@
 
             <!-- Templates for data cards and tables -->
             <ng-template #messageBox>
+                <!-- Backup SLA (RPO) Summary Widget -->
+                <div *ngIf="actionResult?.data?.sla_summary" style="margin-bottom: 16px; background: rgba(0,0,0,0.4); border: 1px solid var(--border-subtle); border-radius: 10px; padding: 14px 18px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px;">
+                    <div>
+                        <div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 700; letter-spacing: 0.5px;">Cumplimiento de SLA de Recuperación (RPO)</div>
+                        <div style="font-size: 20px; font-weight: 700; margin-top: 4px; display: flex; align-items: center; gap: 10px;">
+                            <span [style.color]="actionResult.data.sla_summary.critical > 0 ? '#ef4444' : (actionResult.data.sla_summary.warning > 0 ? '#f59e0b' : '#10b981')">
+                                {{ actionResult.data.sla_summary.compliance_pct }}%
+                            </span>
+                            <span style="font-size: 12px; color: var(--text-secondary); font-weight: 400;">
+                                ({{ actionResult.data.sla_summary.compliant }} de {{ actionResult.data.sla_summary.total }} bases al día)
+                            </span>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <span style="background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.4); color: #34d399; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;">
+                            🟢 Al Día: {{ actionResult.data.sla_summary.compliant }}
+                        </span>
+                        <span *ngIf="actionResult.data.sla_summary.warning > 0" style="background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.4); color: #fbbf24; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;">
+                            🟡 Advertencia: {{ actionResult.data.sla_summary.warning }}
+                        </span>
+                        <span *ngIf="actionResult.data.sla_summary.critical > 0" style="background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.5); color: #f87171; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;">
+                            🔴 Riesgo RPO: {{ actionResult.data.sla_summary.critical }}
+                        </span>
+                    </div>
+                </div>
+
                 <div style="padding: 20px; background: rgba(0,0,0,0.3); border-radius: 12px; border: 1px solid var(--border-subtle); color: white; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">
                     <span *ngIf="getActionType() === 'success'" style="margin-right: 10px; font-size: 18px;">✅</span>
                     <span *ngIf="getActionType() === 'error'" style="margin-right: 10px; font-size: 18px;">❌</span>
@@ -602,7 +631,10 @@
                                 <tr *ngFor="let row of getActionData()" class="table-row-animated" style="border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
                                     <td *ngFor="let key of getKeys(row)" style="padding: 12px; white-space: nowrap;">
                                         <ng-container *ngIf="key === 'consulta_sql'; else standardCell">
-                                            <div style="display: flex; align-items: center; gap: 8px; max-width: 540px;">
+                                            <div style="display: flex; align-items: center; gap: 8px; max-width: 580px;">
+                                                <span *ngIf="row.has_regression" [title]="'Regresión de Rendimiento: Histórico ' + row.historical_avg_ms + ' ms vs Actual. Requiere optimización.'" style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5); color: #f87171; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; white-space: nowrap; display: inline-flex; align-items: center; gap: 3px;">
+                                                    ⚠️ Regresión (+{{ row.regression_pct }}%)
+                                                </span>
                                                 <code style="background: #000; padding: 3px 6px; border-radius: 4px; color: #38bdf8; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">{{ row[key] }}</code>
                                                 <button type="button" (click)="copyQuerySql(row[key])" title="Copiar consulta SQL" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #cbd5e1; padding: 2px 7px; border-radius: 4px; font-size: 11px; cursor: pointer; white-space: nowrap;">📋 Copiar</button>
                                                 <button type="button" (click)="diagnoseQueryWithAi(row)" title="Analizar con Copiloto IA DBA (Sugerir índices y reescritura)" style="background: rgba(0, 229, 255, 0.15); border: 1px solid rgba(0, 229, 255, 0.4); color: #00e5ff; padding: 2px 9px; border-radius: 4px; font-size: 11px; cursor: pointer; white-space: nowrap; font-weight: 600; display: flex; align-items: center; gap: 4px;">🪄 Diagnosticar con IA</button>
@@ -1664,6 +1696,130 @@
             <div style="margin-top: 18px; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px;">
                 <button type="button" (click)="closeQueryDiagnosisModal()" style="padding: 9px 18px; background: rgba(255,255,255,0.06); border: 1px solid var(--border-subtle); color: var(--text-primary); border-radius: 8px; font-size: 12.5px; cursor: pointer;">
                     Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Score de Salud Global & Health Check Ejecutivo (0 - 100 pts) -->
+    <div *ngIf="isHealthScoreModalOpen" class="modal-overlay" (click)="closeHealthScoreModal()" style="position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px;">
+        <div class="modal-card" (click)="$event.stopPropagation()" style="background: #11151d; border: 1px solid rgba(0,229,255,0.3); border-radius: 14px; width: 100%; max-width: 720px; max-height: 90vh; overflow-y: auto; padding: 24px; box-shadow: 0 25px 60px rgba(0,0,0,0.7); display: flex; flex-direction: column; gap: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 24px;">🩺</span>
+                    <div>
+                        <h3 style="margin: 0; font-size: 17px; font-weight: 700; color: white;">Health Check Ejecutivo de Base de Datos</h3>
+                        <p style="margin: 2px 0 0 0; font-size: 11.5px; color: var(--text-muted);">Calificación integral ponderada de rendimiento, almacenamiento y resiliencia</p>
+                    </div>
+                </div>
+                <button type="button" (click)="closeHealthScoreModal()" style="background: transparent; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer;">✕</button>
+            </div>
+
+            <div *ngIf="isHealthScoreLoading" style="text-align: center; padding: 50px 20px; color: var(--text-muted);">
+                <div style="font-size: 32px; animation: spin 1s infinite linear; display: inline-block;">⚙️</div>
+                <div style="margin-top: 12px; font-size: 13.5px; color: var(--cyan); font-weight: 600;">Calculando métricas y evaluando SLA de la instancia...</div>
+            </div>
+
+            <div *ngIf="!isHealthScoreLoading && healthScoreData" style="display: flex; flex-direction: column; gap: 16px;">
+                <!-- Main KPI Score Header -->
+                <div style="background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(0,0,0,0.4) 100%); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
+                    <div>
+                        <div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px;">Instancia Evaluada</div>
+                        <div style="font-size: 20px; font-weight: 700; color: white; margin-top: 2px;">
+                            {{ healthScoreData.instance_name }} <span style="font-size: 13px; color: var(--cyan); font-weight: 400;">({{ healthScoreData.engine }})</span>
+                        </div>
+                        <div style="font-size: 12px; color: #94a3b8; margin-top: 4px;">{{ healthScoreData.summary }}</div>
+                    </div>
+                    <div style="text-align: center; background: rgba(0,0,0,0.5); border: 2px solid {{ healthScoreData.status_color }}; border-radius: 14px; padding: 12px 24px; min-width: 140px;">
+                        <div style="font-size: 36px; font-weight: 900; line-height: 1; color: {{ healthScoreData.status_color }}; font-family: var(--font-mono);">
+                            {{ healthScoreData.score }}<span style="font-size: 16px; color: var(--text-muted);">/100</span>
+                        </div>
+                        <div style="font-size: 11px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; margin-top: 6px; color: {{ healthScoreData.status_color }};">
+                            {{ healthScoreData.status }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5 Categories Grid -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;">
+                    <div *ngFor="let cat of healthScoreData.categories" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 12.5px; font-weight: 600; color: white;">{{ cat.label }}</span>
+                            <span style="font-size: 12px; font-family: monospace; font-weight: 700;" [style.color]="cat.status === 'EXCELLENT' ? '#10b981' : (cat.status === 'WARNING' ? '#f59e0b' : '#ef4444')">
+                                {{ cat.score }} / {{ cat.max }} pts
+                            </span>
+                        </div>
+                        <div style="height: 5px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden;">
+                            <div [style.width]="(cat.score / cat.max * 100) + '%'" [style.background]="cat.status === 'EXCELLENT' ? '#10b981' : (cat.status === 'WARNING' ? '#f59e0b' : '#ef4444')" style="height: 100%; border-radius: 3px; transition: width 0.6s ease;"></div>
+                        </div>
+                        <div style="font-size: 11.5px; color: #94a3b8;">{{ cat.detail }}</div>
+                    </div>
+                </div>
+
+                <!-- Recommendations Section -->
+                <div style="background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 14px;">
+                    <div style="font-size: 12px; font-weight: 700; color: #38bdf8; text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                        <span>💡</span> Recomendaciones Técnicas Sugeridas
+                    </div>
+                    <ul style="margin: 0; padding-left: 20px; font-size: 12.5px; color: #cbd5e1; line-height: 1.6;">
+                        <li *ngFor="let rec of healthScoreData.recommendations">{{ rec }}</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px; margin-top: 4px;">
+                <button type="button" *ngIf="healthScoreData" (click)="exportHealthScoreToCsv()" style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.35); color: #34d399; padding: 8px 16px; border-radius: 6px; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 600;">
+                    📊 <span>Exportar Reporte Ejecutivo (CSV)</span>
+                </button>
+                <button type="button" (click)="closeHealthScoreModal()" style="padding: 8px 18px; background: rgba(255,255,255,0.06); border: 1px solid var(--border-subtle); color: var(--text-primary); border-radius: 6px; font-size: 12.5px; cursor: pointer; margin-left: auto;">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Seguridad: Cancelación de Proceso con Justificación Obligatoria (KILL Session) -->
+    <div *ngIf="isKillModalOpen" class="modal-overlay" (click)="closeKillModal()" style="position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px;">
+        <div class="modal-card" (click)="$event.stopPropagation()" style="background: #11151d; border: 1px solid rgba(239,68,68,0.4); border-radius: 14px; width: 100%; max-width: 520px; padding: 24px; box-shadow: 0 25px 60px rgba(0,0,0,0.8); display: flex; flex-direction: column; gap: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 22px;">🛑</span>
+                    <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: white;">Confirmación Segura: Terminar Proceso (KILL)</h3>
+                </div>
+                <button type="button" (click)="closeKillModal()" style="background: transparent; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer;">✕</button>
+            </div>
+
+            <!-- Warning Notice -->
+            <div style="background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; padding: 12px; font-size: 12px; color: #fca5a5; line-height: 1.5;">
+                ⚠️ <strong>Operación Crítica:</strong> Forzar la cancelación de una sesión abortará de inmediato cualquier transacción en vuelo en la base de datos remota. Solo debe ejecutarse en procesos huérfanos o bloqueantes no recuperables.
+            </div>
+
+            <!-- Form -->
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <div>
+                    <label style="display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; font-weight: 600;">SPID / PID del Proceso:</label>
+                    <input type="text" [(ngModel)]="killSpid" placeholder="Ej: 84" style="width: 100%; background: #000; border: 1px solid rgba(255,255,255,0.15); color: white; padding: 9px 12px; border-radius: 6px; font-size: 13px; font-family: monospace;">
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; font-weight: 600;">
+                        Motivo Justificado de Terminación (Auditoría Forense obligatoria):
+                    </label>
+                    <textarea [(ngModel)]="killReason" rows="3" placeholder="Ej: Sesión transaccional bloqueante de facturación ticket #4920 autorizada por DBA Principal." style="width: 100%; background: #000; border: 1px solid rgba(255,255,255,0.15); color: white; padding: 9px 12px; border-radius: 6px; font-size: 12.5px; resize: vertical;"></textarea>
+                    <div style="font-size: 10.5px; color: var(--text-muted); margin-top: 3px;">
+                        * Este motivo quedará registrado permanentemente en la bitácora de auditoría con tu usuario y fecha.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px;">
+                <button type="button" (click)="closeKillModal()" [disabled]="isExecutingKill" style="padding: 9px 16px; background: rgba(255,255,255,0.06); border: 1px solid var(--border-subtle); color: var(--text-primary); border-radius: 6px; font-size: 12.5px; cursor: pointer;">
+                    Cancelar
+                </button>
+                <button type="button" (click)="confirmKillSession()" [disabled]="isExecutingKill || !killSpid.trim() || killReason.trim().length < 5" style="padding: 9px 18px; background: #dc2626; border: 1px solid #ef4444; color: white; border-radius: 6px; font-size: 12.5px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px;" [style.opacity]="(!killSpid.trim() || killReason.trim().length < 5) ? '0.5' : '1'" [style.cursor]="(!killSpid.trim() || killReason.trim().length < 5) ? 'not-allowed' : 'pointer'">
+                    <span *ngIf="isExecutingKill">⚙️ Terminando...</span>
+                    <span *ngIf="!isExecutingKill">🔴 Confirmar Cancelación Forzada (KILL)</span>
                 </button>
             </div>
         </div>

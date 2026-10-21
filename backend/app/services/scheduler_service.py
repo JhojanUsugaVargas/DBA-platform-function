@@ -21,7 +21,8 @@ def check_and_create_alerts(
     blocked: int,
     active_conn: int,
     total_conn: int,
-    buffer_cache: float = None
+    buffer_cache: float = None,
+    backup_critical_count: int = 0
 ):
     """Evaluates telemetry values against thresholds and creates alerts with email dispatch."""
     from app.models.alert import SystemAlert
@@ -64,6 +65,17 @@ def check_and_create_alerts(
             "threshold": f"{settings.ALERT_BUFFER_CACHE_THRESHOLD}%",
             "title": f"⚠️ Caída de Buffer Cache Hit Ratio en {instance.name}",
             "message": f"El Buffer Cache Hit Ratio de la instancia {instance.name} ha descendido a {buffer_cache}%, indicando posible presión de memoria RAM."
+        })
+
+    # 4. Backup SLA Alert
+    if backup_critical_count > 0:
+        alerts_to_trigger.append({
+            "metric": "BACKUP_SLA",
+            "severity": "CRITICAL",
+            "current": f"{backup_critical_count} bases sin backup",
+            "threshold": "0 bases sin backup",
+            "title": f"🛡️ Incumplimiento de SLA de Backups (RPO) en {instance.name}",
+            "message": f"Se detectaron {backup_critical_count} base(s) de datos en {instance.name} con más de 24 horas sin copia de seguridad completa."
         })
 
     # Process each candidate alert
@@ -126,6 +138,21 @@ def check_and_create_alerts(
 
             if dispatched_any:
                 alert.email_dispatched = True
+
+            # Dispatch Webhooks (Microsoft Teams & Slack)
+            try:
+                from app.services.webhook_service import dispatch_webhooks
+                dispatch_webhooks(
+                    instance_name=instance.name,
+                    metric_name=item["metric"],
+                    severity=item["severity"],
+                    current_value=item["current"],
+                    threshold_value=item["threshold"],
+                    title=item["title"],
+                    message=item["message"]
+                )
+            except Exception as hook_exc:
+                logging.warning("Error despachando webhooks para %s: %s", instance.name, hook_exc)
 
         except Exception as alert_err:
             logging.error("Error al procesar alerta para %s (%s): %s", instance.name, item["metric"], alert_err)
@@ -195,6 +222,15 @@ def track_historical_metrics():
                 )
                 db.add(snapshot)
 
+                # Check backup SLA
+                backup_critical_count = 0
+                try:
+                    from app.services.remote_db_service import get_backup_status
+                    bkp_info = get_backup_status(cursor, engine_type)
+                    backup_critical_count = bkp_info.get("critical_count", 0)
+                except Exception:
+                    pass
+
                 # Check and trigger alerts
                 check_and_create_alerts(
                     db=db,
@@ -206,7 +242,8 @@ def track_historical_metrics():
                     blocked=blocked,
                     active_conn=active_conn,
                     total_conn=total_conn,
-                    buffer_cache=buffer_cache
+                    buffer_cache=buffer_cache,
+                    backup_critical_count=backup_critical_count
                 )
 
                 cursor.close()

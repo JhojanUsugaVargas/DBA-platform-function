@@ -268,6 +268,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
   diagnosedQueryRow: any = null;
   queryDiagnosisResult: any = null;
 
+  // Health Check Ejecutivo & Score Global (0 - 100 pts)
+  isHealthScoreModalOpen: boolean = false;
+  isHealthScoreLoading: boolean = false;
+  healthScoreData: any = null;
+
+  // Seguridad: Modal de Cancelación de Proceso con Justificación Obligatoria
+  isKillModalOpen: boolean = false;
+  killSpid: string = '';
+  killReason: string = '';
+  isExecutingKill: boolean = false;
+
   constructor(
     private router: Router,
     private apiService: ApiService,
@@ -1233,7 +1244,8 @@ Date: 2026-10-12`;
   // UI Helpers
   getKeys(obj: any): string[] {
     if (!obj) return [];
-    return Object.keys(obj);
+    const hidden = new Set(['has_regression', 'regression_pct', 'historical_avg_ms', 'regression_severity']);
+    return Object.keys(obj).filter(k => !hidden.has(k));
   }
 
   isArray(obj: any): boolean {
@@ -1501,12 +1513,7 @@ Date: 2026-10-12`;
           this.toast.error('⛔ Permisos insuficientes: Solo el Administrador y el DBA Principal tienen autorización para forzar la cancelación de consultas y procesos.');
           return;
         }
-        this.isChatMinimized = false;
-        this.chatInput = "matar ";
-        setTimeout(() => {
-          const input = document.querySelector('.chat-input-area input') as HTMLInputElement;
-          if (input) input.focus();
-        }, 100);
+        this.openKillModal();
         return;
       default: 
         setTimeout(() => {
@@ -2349,5 +2356,117 @@ Date: 2026-10-12`;
     this.isQueryDiagnosisModalOpen = false;
     this.diagnosedQueryRow = null;
     this.queryDiagnosisResult = null;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Health Check Ejecutivo & Score Global (0 - 100 pts)
+  // ---------------------------------------------------------------------------
+  openHealthScoreModal(): void {
+    this.isHealthScoreModalOpen = true;
+    this.isHealthScoreLoading = true;
+    this.healthScoreData = null;
+
+    this.dbaService.getHealthScore().subscribe({
+      next: (data) => {
+        this.isHealthScoreLoading = false;
+        this.healthScoreData = data;
+      },
+      error: (err) => {
+        this.isHealthScoreLoading = false;
+        this.toast.error(err.error?.detail || 'Error al calcular Health Score de la instancia.');
+      }
+    });
+  }
+
+  closeHealthScoreModal(): void {
+    this.isHealthScoreModalOpen = false;
+  }
+
+  exportHealthScoreToCsv(): void {
+    if (!this.healthScoreData) return;
+    const d = this.healthScoreData;
+    const rows = [
+      ['DataCheck Pro - Reporte Ejecutivo de Salud DBA'],
+      ['Instancia', d.instance_name || 'N/A'],
+      ['Motor', d.engine || 'N/A'],
+      ['Score Global', `${d.score} / ${d.max_score}`],
+      ['Estado Global', d.status || 'N/A'],
+      ['Resumen Ejecutivo', `"${(d.summary || '').replace(/"/g, '""')}"`],
+      ['Fecha de Análisis', d.calculated_at || ''],
+      [],
+      ['Categoría', 'Puntos Obtenidos', 'Puntaje Máximo', 'Estado', 'Detalle'],
+      ...(d.categories || []).map((c: any) => [
+        `"${c.label}"`,
+        c.score,
+        c.max,
+        c.status,
+        `"${(c.detail || '').replace(/"/g, '""')}"`
+      ]),
+      [],
+      ['Recomendaciones Técnicas DBA'],
+      ...(d.recommendations || []).map((r: string, idx: number) => [`${idx + 1}.`, `"${r.replace(/"/g, '""')}"`])
+    ];
+
+    const csvContent = '\uFEFF' + rows.map(e => e.join(';')).join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `HealthScore_${d.instance_name || 'DBA'}_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    this.toast.success('Reporte Ejecutivo de Salud exportado en CSV.');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Seguridad: Modal de Cancelación de Proceso con Justificación Obligatoria
+  // ---------------------------------------------------------------------------
+  openKillModal(spid: string = ''): void {
+    this.killSpid = spid;
+    this.killReason = '';
+    this.isKillModalOpen = true;
+  }
+
+  closeKillModal(): void {
+    this.isKillModalOpen = false;
+    this.killSpid = '';
+    this.killReason = '';
+  }
+
+  confirmKillSession(): void {
+    const spidTrim = (this.killSpid || '').trim();
+    const reasonTrim = (this.killReason || '').trim();
+
+    if (!spidTrim || isNaN(Number(spidTrim)) || Number(spidTrim) <= 0) {
+      this.toast.warning('Ingresa un número de SPID / PID válido.');
+      return;
+    }
+
+    if (!reasonTrim || reasonTrim.length < 5) {
+      this.toast.warning('Por motivos de seguridad y auditoría forense, ingresa una justificación de al menos 5 caracteres.');
+      return;
+    }
+
+    this.isExecutingKill = true;
+    this.dbaService.cancelSession(spidTrim, reasonTrim).subscribe({
+      next: (res) => {
+        this.isExecutingKill = false;
+        this.closeKillModal();
+        if (res.type === 'success') {
+          this.toast.success(res.message || `Proceso SPID ${spidTrim} terminado correctamente.`);
+          // Refresh active view or telemetry
+          if (this.activeTab === 'whoisactive') {
+            this.runAction('whoisactive');
+          }
+        } else {
+          this.toast.error(res.message || 'Error al terminar proceso.');
+        }
+      },
+      error: (err) => {
+        this.isExecutingKill = false;
+        this.toast.error(err.error?.detail || err.error?.message || 'Fallo al forzar la cancelación de la sesión.');
+      }
+    });
   }
 }

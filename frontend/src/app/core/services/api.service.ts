@@ -244,4 +244,9 @@ export class ApiService {
     const url = days ? `${this.baseUrl}/admin/system/purge-telemetry?days=${days}` : `${this.baseUrl}/admin/system/purge-telemetry`;
     return this.http.post<any>(url, {});
   }
+
+  // Webhook Test (Teams & Slack)
+  testWebhook(payload: { webhook_type: string; webhook_url?: string }): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/admin/system/test-webhook`, payload);
+  }
 }
