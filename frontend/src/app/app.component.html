@@ -4,3 +4,31 @@
 </div>
 <app-cookie-banner></app-cookie-banner>
 <app-toast-container></app-toast-container>
+
+<!-- Modal de Advertencia de Inactividad y Cierre Seguro -->
+<div *ngIf="inactivity.isWarningActive$ | async" class="inactivity-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="inactivityModalTitle">
+  <div class="inactivity-modal-card">
+    <div class="inactivity-icon-badge">
+      <span>⏳</span>
+    </div>
+    <h3 id="inactivityModalTitle" class="inactivity-title">Advertencia de Cierre por Inactividad</h3>
+    <p class="inactivity-desc">
+      Por políticas de seguridad y protección de accesos a la infraestructura de bases de datos, tu sesión expirará en:
+    </p>
+    <div class="inactivity-countdown-box">
+      <span class="countdown-number">{{ inactivity.remainingSeconds$ | async }}</span>
+      <span class="countdown-label">segundos restantes</span>
+    </div>
+    <p class="inactivity-subdesc">
+      Si no respondes antes de que el contador llegue a cero, serás desconectado automáticamente y redirigido a la pantalla de inicio de sesión.
+    </p>
+    <div class="inactivity-actions">
+      <button type="button" class="btn-stay-active" (click)="inactivity.stayActive()">
+        🛡️ Mantener Sesión Activa
+      </button>
+      <button type="button" class="btn-logout-now" (click)="inactivity.logoutNow()">
+        Cerrar Sesión Ahora
+      </button>
+    </div>
+  </div>
+</div>

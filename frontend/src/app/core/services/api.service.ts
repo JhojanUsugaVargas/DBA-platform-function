@@ -191,4 +191,57 @@ export class ApiService {
   deleteIncident(id: number): Observable<any> {
     return this.http.delete<any>(`${this.baseUrl}/admin/incidents/${id}`);
   }
+
+  // Alertas Proactivas y Notificaciones
+  getAlerts(unreadOnly: boolean = false, limit: number = 50): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/dba/alerts?unread_only=${unreadOnly}&limit=${limit}`);
+  }
+
+  getUnreadAlertsCount(): Observable<{ unread_count: number }> {
+    return this.http.get<{ unread_count: number }>(`${this.baseUrl}/dba/alerts/unread-count`);
+  }
+
+  markAlertRead(alertId: number): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/dba/alerts/${alertId}/read`, {});
+  }
+
+  markAllAlertsRead(): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/dba/alerts/mark-all-read`, {});
+  }
+
+  deleteAlert(alertId: number): Observable<any> {
+    return this.http.delete<any>(`${this.baseUrl}/dba/alerts/${alertId}`);
+  }
+
+  // Copiloto IA: Diagnóstico de Consultas Lentas
+  diagnoseQuery(payload: {
+    query_text: string;
+    engine?: string;
+    execution_count?: number;
+    cpu_total_ms?: number;
+    logical_reads?: number;
+  }): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/dba/queries/diagnose`, payload);
+  }
+
+  // Copiloto IA: Sugerencia de Solución para Tickets
+  suggestIncidentSolution(incidentId: number): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/admin/incidents/${incidentId}/suggest-solution`, {});
+  }
+
+  suggestDraftSolution(payload: {
+    title: string;
+    description: string;
+    module?: string;
+    priority?: string;
+    ticket_type?: string;
+  }): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/admin/incidents/suggest-solution`, payload);
+  }
+
+  // Purga Manual de Telemetría
+  purgeTelemetry(days?: number): Observable<any> {
+    const url = days ? `${this.baseUrl}/admin/system/purge-telemetry?days=${days}` : `${this.baseUrl}/admin/system/purge-telemetry`;
+    return this.http.post<any>(url, {});
+  }
 }

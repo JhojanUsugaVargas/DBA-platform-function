@@ -184,3 +184,105 @@ def send_otp_email(to_email: str, code: str) -> bool:
         logging.warning(f"No se pudo enviar email OTP a {to_email}: {exc}")
         return False
 
+
+def send_alert_email(
+    to_email: str,
+    instance_name: str,
+    metric_name: str,
+    severity: str,
+    current_value: str,
+    threshold_value: str,
+    title: str,
+    message: str
+) -> Dict[str, Any]:
+    """Dispatches a critical proactive monitoring alert email to DBA administrators."""
+    smtp_host = settings.SMTP_SERVER or os.getenv("SMTP_SERVER", "") or os.getenv("SMTP_HOST", "")
+    smtp_port = settings.SMTP_PORT or int(os.getenv("SMTP_PORT", "587"))
+    smtp_user = settings.SMTP_USER or os.getenv("SMTP_USER", "")
+    smtp_password = settings.SMTP_PASSWORD or os.getenv("SMTP_PASSWORD", "")
+    smtp_from = settings.SMTP_FROM or os.getenv("SMTP_FROM", "") or smtp_user or "alertas@datacheck.local"
+    access_url = settings.FRONTEND_URL
+
+    severity_color = "#ef4444" if severity == "CRITICAL" else "#f59e0b"
+    subject = f"[{severity}] 🚨 Alerta Proactiva DBA - {instance_name} ({metric_name})"
+
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body {{ font-family: 'Segoe UI', Arial, sans-serif; background: #0b0c10; color: #e2e8f0; margin: 0; padding: 20px; }}
+        .card {{ max-width: 580px; margin: 0 auto; background: #13141f; border: 1px solid #2d3748; border-radius: 12px; padding: 32px; }}
+        .badge {{ display: inline-block; background: {severity_color}; color: #ffffff; padding: 4px 12px; border-radius: 6px; font-weight: bold; font-size: 12px; text-transform: uppercase; margin-bottom: 12px; }}
+        .title {{ color: #ffffff; font-size: 20px; font-weight: bold; margin: 0 0 10px 0; }}
+        .metric-box {{ background: #1a1c29; border: 1px solid #374151; border-radius: 8px; padding: 18px; margin: 20px 0; }}
+        .row {{ display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }}
+        .lbl {{ color: #94a3b8; font-weight: 500; }}
+        .val {{ color: #ffffff; font-family: monospace; font-weight: bold; }}
+        .val-alert {{ color: {severity_color}; font-family: monospace; font-weight: bold; }}
+        .btn {{ display: inline-block; background: #00e5ff; color: #000000; padding: 10px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; margin-top: 15px; text-align: center; }}
+        .footer {{ text-align: center; font-size: 12px; color: #64748b; margin-top: 24px; }}
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <span class="badge">{severity}</span>
+        <h2 class="title">{title}</h2>
+        <p style="color: #cbd5e1; font-size: 14px; line-height: 1.5;">{message}</p>
+
+        <div class="metric-box">
+          <div class="row"><span class="lbl">Instancia Afectada:</span> <span class="val">{instance_name}</span></div>
+          <div class="row"><span class="lbl">Métrica Monitoreada:</span> <span class="val">{metric_name}</span></div>
+          <div class="row"><span class="lbl">Valor Registrado:</span> <span class="val-alert">{current_value}</span></div>
+          <div class="row"><span class="lbl">Umbral Configurado:</span> <span class="val">{threshold_value}</span></div>
+        </div>
+
+        <div style="text-align: center;">
+          <a href="{access_url}" class="btn">Abrir Telemetría en DataCheck Pro</a>
+        </div>
+
+        <div class="footer">
+          Generado automáticamente por el motor de supervisión proactiva DataCheck Pro.<br>
+          Para gestionar umbrales o destinatarios, contacta a la administración de plataforma.
+        </div>
+      </div>
+    </body>
+    </html>
+    """
+
+    plain_content = (
+        f"[{severity}] ALERTA PROACTIVA DBA - {instance_name}\n\n"
+        f"Métrica: {metric_name}\n"
+        f"Valor Actual: {current_value} (Umbral: {threshold_value})\n\n"
+        f"Detalle: {message}\n\n"
+        f"Acceso a la plataforma: {access_url}\n"
+    )
+
+    is_configured = bool(smtp_host and (smtp_user or os.getenv("SMTP_ALLOW_ANONYMOUS", "").lower() in ("1", "true", "yes")))
+    if not is_configured:
+        logging.info(f"[SIMULATED ALERT EMAIL] Alerta {severity} {metric_name} para {to_email} ({instance_name})")
+        return {"sent": False, "method": "simulated", "detail": "SMTP no configurado"}
+
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = smtp_from
+        msg["To"] = to_email
+        msg.attach(MIMEText(plain_content, "plain"))
+        msg.attach(MIMEText(html_content, "html"))
+
+        with smtplib.SMTP(smtp_host, smtp_port, timeout=12) as server:
+            if settings.SMTP_USE_TLS:
+                server.starttls()
+            if smtp_user and smtp_password:
+                server.login(smtp_user, smtp_password)
+            server.sendmail(smtp_from, [to_email], msg.as_string())
+
+        logging.info(f"Alerta enviada por correo a {to_email} ({instance_name})")
+        return {"sent": True, "to": to_email, "method": "smtp"}
+    except Exception as exc:
+        logging.error(f"Error enviando alerta por correo a {to_email}: {exc}")
+        return {"sent": False, "to": to_email, "error": str(exc)}
+
+

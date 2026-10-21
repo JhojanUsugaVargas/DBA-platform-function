@@ -4,6 +4,7 @@ import random
 from functools import wraps
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
+from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
@@ -784,5 +785,130 @@ def action_top_queries(
             "message": f"Mostrando telemetría estimada del Query Cache ({str(exc)}).",
             "data": simulated
         }
+
+
+# --------------------------------------------------------------------------
+# Proactive Alerts Endpoints (Campana de Notificaciones & Gestión)
+# --------------------------------------------------------------------------
+class QueryDiagnosePayload(BaseModel):
+    query_text: str
+    engine: Optional[str] = "sqlserver"
+    execution_count: Optional[int] = 1
+    cpu_total_ms: Optional[float] = 0.0
+    logical_reads: Optional[int] = 0
+
+
+@router.get("/alerts", summary="List system proactive alerts")
+def get_system_alerts(
+    unread_only: bool = Query(False),
+    limit: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(get_current_user)
+):
+    """Retrieve recent proactive telemetry alerts for notification bell."""
+    from app.models.alert import SystemAlert
+    from app.models.contract import Instance
+
+    query = db.query(SystemAlert, Instance.name.label("instance_name"))\
+        .outerjoin(Instance, SystemAlert.instance_id == Instance.id)
+
+    if unread_only:
+        query = query.filter(SystemAlert.is_read == False)
+
+    results = query.order_by(SystemAlert.created_at.desc()).limit(limit).all()
+
+    alerts_list = []
+    for alert, inst_name in results:
+        alerts_list.append({
+            "id": alert.id,
+            "instance_id": alert.instance_id,
+            "instance_name": inst_name or "Instancia Desconocida",
+            "severity": alert.severity,
+            "metric_name": alert.metric_name,
+            "current_value": alert.current_value,
+            "threshold_value": alert.threshold_value,
+            "title": alert.title,
+            "message": alert.message,
+            "is_read": alert.is_read,
+            "email_dispatched": alert.email_dispatched,
+            "created_at": alert.created_at.isoformat() if alert.created_at else None
+        })
+
+    return alerts_list
+
+
+@router.get("/alerts/unread-count", summary="Get unread alert count for navbar badge")
+def get_unread_alerts_count(
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(get_current_user)
+):
+    """Returns number of unread alerts for real-time badge count."""
+    from app.models.alert import SystemAlert
+    count = db.query(SystemAlert).filter(SystemAlert.is_read == False).count()
+    return {"unread_count": count}
+
+
+@router.post("/alerts/{alert_id}/read", summary="Mark an alert as read")
+def mark_alert_read(
+    alert_id: int,
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(get_current_user)
+):
+    """Marks a single alert as read."""
+    from app.models.alert import SystemAlert
+    alert = db.query(SystemAlert).filter(SystemAlert.id == alert_id).first()
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alerta no encontrada")
+    alert.is_read = True
+    db.commit()
+    return {"success": True, "message": "Alerta marcada como leída", "id": alert_id}
+
+
+@router.post("/alerts/mark-all-read", summary="Mark all alerts as read")
+def mark_all_alerts_read(
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(get_current_user)
+):
+    """Marks all unread alerts as read."""
+    from app.models.alert import SystemAlert
+    count = db.query(SystemAlert).filter(SystemAlert.is_read == False).update({"is_read": True})
+    db.commit()
+    return {"success": True, "marked_count": count, "message": f"{count} alertas marcadas como leídas"}
+
+
+@router.delete("/alerts/{alert_id}", summary="Delete an alert")
+def delete_alert(
+    alert_id: int,
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(get_current_user)
+):
+    """Deletes an alert permanently."""
+    from app.models.alert import SystemAlert
+    alert = db.query(SystemAlert).filter(SystemAlert.id == alert_id).first()
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alerta no encontrada")
+    db.delete(alert)
+    db.commit()
+    return {"success": True, "message": "Alerta eliminada", "id": alert_id}
+
+
+# --------------------------------------------------------------------------
+# Copiloto IA Integrado en Consultas Lentas
+# --------------------------------------------------------------------------
+@router.post("/queries/diagnose", summary="Diagnose slow query using AI DBA Copilot")
+def diagnose_query_endpoint(
+    payload: QueryDiagnosePayload,
+    _: Dict[str, Any] = Depends(get_current_user)
+):
+    """Analyzes a SQL query using Gemini AI or Local DBA heuristics to suggest indexes and rewrites."""
+    from app.services.ai_service import diagnose_sql_query
+    return diagnose_sql_query(
+        query_text=payload.query_text,
+        engine=payload.engine or "sqlserver",
+        execution_count=payload.execution_count or 1,
+        cpu_total_ms=payload.cpu_total_ms or 0.0,
+        logical_reads=payload.logical_reads or 0
+    )
+
 
 

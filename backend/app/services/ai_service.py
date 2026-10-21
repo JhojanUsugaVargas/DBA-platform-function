@@ -169,3 +169,214 @@ def get_ai_response(texto: str, username: str) -> Dict[str, Any]:
         ),
         "source": "DataCheck Local Intel"
     }
+
+
+def diagnose_sql_query(
+    query_text: str,
+    engine: str = "sqlserver",
+    execution_count: int = 1,
+    cpu_total_ms: float = 0.0,
+    logical_reads: int = 0
+) -> Dict[str, Any]:
+    """Diagnoses a slow/heavy query and suggests index creation and query rewrites."""
+    if not query_text or not query_text.strip():
+        return {
+            "success": False,
+            "message": "No se proporcionó texto de consulta SQL para diagnosticar.",
+            "source": "Local"
+        }
+
+    q_clean = query_text.strip()
+    is_pg = "postgres" in engine.lower()
+
+    # 1. Gemini AI Analysis (if configured)
+    if GEMINI_AVAILABLE and ai_model:
+        try:
+            prompt = f"""Eres un Arquitecto DBA Senior especializado en optimización y afinamiento de consultas (Query Tuning) para {engine.upper()}.
+Analiza la siguiente consulta identificada en el Top Queries de la plataforma:
+- Motor: {engine.upper()}
+- Total Ejecuciones: {execution_count}
+- CPU Total consumido: {cpu_total_ms} ms
+- Lecturas Lógicas: {logical_reads}
+
+Consulta SQL:
+```sql
+{q_clean}
+```
+
+Proporciona una respuesta en Markdown estructurada con:
+1. **🔍 Diagnóstico del Cuello de Botella**: Identifica anti-patrones (ej. SELECT *, comodines '%' al inicio, funciones en cláusula WHERE, conversiones implícitas, falta de filtrado o joins cartesianos).
+2. **⚡ Índice Sugerido (CREATE INDEX)**: Sentencia DDL completa lista para ejecutar con columnas de búsqueda y columnas INCLUDE para un index seek con cobertura total.
+3. **🛠️ Reescritura SQL Optimizada**: La consulta reescrita de forma óptima.
+4. **📊 Impacto Estimado**: Estimación de reducción en lecturas de disco y CPU.
+Sé muy conciso, directo y técnico."""
+            res = ai_model.generate_content(prompt)
+            if res and res.text:
+                return {
+                    "success": True,
+                    "diagnosis": res.text.strip(),
+                    "query_text": q_clean,
+                    "engine": engine,
+                    "source": "Gemini 2.0 Flash"
+                }
+        except Exception as exc:
+            logging.warning("Error llamando a Gemini para diagnóstico SQL: %s", exc)
+
+    # 2. Local Static Heuristic DBA Diagnostic Engine (Fallback)
+    anti_patterns = []
+    suggested_indexes = []
+    rewritten_sql = q_clean
+
+    upper_q = q_clean.upper()
+    if "SELECT *" in upper_q:
+        anti_patterns.append("• **Proyección completa (SELECT *):** Fuerza la lectura de todas las columnas de la página de datos, impidiendo index seeks cubiertos y consumiendo memoria innecesaria en el Buffer Pool.")
+    if "LIKE '%" in upper_q:
+        anti_patterns.append("• **Comodín inicial (LIKE '%...'):** Hace que el predicado sea no-SARGable, forzando un escaneo de índice completo (Index Scan) o de tabla (Table Scan).")
+    if "NOT IN (SELECT" in upper_q:
+        anti_patterns.append("• **Subconsulta NOT IN:** Si existen valores nulos en el conjunto resultante, la consulta se evalúa secuencialmente. Se recomienda reemplazar por `NOT EXISTS`.")
+
+    # Match possible table name from FROM clause
+    table_match = re.search(r"FROM\s+([A-Za-z0-9_.]+)", q_clean, re.I)
+    table_name = table_match.group(1) if table_match else "tu_tabla"
+
+    # Match WHERE columns
+    where_match = re.search(r"WHERE\s+([A-Za-z0-9_.]+)", q_clean, re.I)
+    where_col = where_match.group(1) if where_match else "columna_filtro"
+
+    if is_pg:
+        index_ddl = f"CREATE INDEX idx_{table_name.replace('.', '_')}_{where_col} ON {table_name} ({where_col});"
+    else:
+        index_ddl = f"CREATE NONCLUSTERED INDEX IX_{table_name.replace('.', '_')}_{where_col} ON {table_name} ({where_col}) WITH (FILLFACTOR = 90, ONLINE = ON);"
+
+    if not anti_patterns:
+        anti_patterns.append("• **Consumo acumulado:** La consulta presenta alto uso de lecturas o CPU; verificar estadísticas desactualizadas o falta de índice de cobertura.")
+
+    diagnosis_text = f"""### 🔍 Diagnóstico Técnico de Copiloto DBA ({engine.upper()})
+
+**Anti-patrones y Puntos de Atención Detectados:**
+{chr(10).join(anti_patterns)}
+
+---
+
+### ⚡ Índice Recomendado (DDL Sugerido):
+```sql
+-- Ejecutar en ventana de bajo impacto
+{index_ddl}
+```
+
+---
+
+### 💡 Buenas Prácticas de Reescritura:
+1. Reemplaza `SELECT *` por las columnas exactas requeridas por la aplicación.
+2. Asegúrate de que los tipos de datos en la cláusula `WHERE` coincidan exactamente con la definición de la tabla para evitar *Implicit Conversions*.
+3. Si la tabla es grande, incluye filtros con fechas o claves particionadas para permitir *Partition Elimination*."""
+
+    return {
+        "success": True,
+        "diagnosis": diagnosis_text,
+        "suggested_sql": rewritten_sql,
+        "suggested_index": index_ddl,
+        "query_text": q_clean,
+        "engine": engine,
+        "source": "DataCheck Local Intel Engine"
+    }
+
+
+def suggest_incident_solution(
+    title: str,
+    description: str,
+    module: str = "General",
+    priority: str = "Media",
+    ticket_type: str = "Incidente"
+) -> Dict[str, Any]:
+    """Generates an automated DBA technical resolution suggestion for a ticket."""
+    clean_title = (title or "").strip()
+    clean_desc = (description or "").strip()
+
+    # 1. Gemini AI Generation
+    if GEMINI_AVAILABLE and ai_model:
+        try:
+            prompt = f"""Eres un Ingeniero DBA Senior especializado en resolución de incidentes de misión crítica en SQL Server y PostgreSQL.
+Analiza el siguiente ticket de soporte reportado en la plataforma:
+- Tipo: {ticket_type}
+- Módulo afectado: {module}
+- Prioridad: {priority}
+- Título: {clean_title}
+- Descripción: {clean_desc}
+
+Genera una recomendación de resolución técnica en Markdown con la siguiente estructura:
+1. **🎯 Causa Raíz Probable**: Qué fenómeno técnico (bloqueos, bloat, autovacuum, desbordamiento tempdb, espacio en disco, estadísticas) está originando el problema.
+2. **🛠️ Plan de Acción Paso a Paso**: Comandos SQL específicos de diagnóstico o remediación inmediata.
+3. **⚠️ Consideraciones de Impacto / Rollback**: Precauciones antes de ejecutar en producción.
+4. **📝 Borrador de Notas para el Ticket**: Un resumen conciso listo para ser copiado al campo de notas del ticket cuando se resuelva."""
+            res = ai_model.generate_content(prompt)
+            if res and res.text:
+                return {
+                    "success": True,
+                    "suggestion": res.text.strip(),
+                    "source": "Gemini 2.0 Flash"
+                }
+        except Exception as exc:
+            logging.warning("Error llamando a Gemini para sugerencia de ticket: %s", exc)
+
+    # 2. Local DBA Incident Knowledge Matrix
+    mod_lower = module.lower()
+    desc_lower = (clean_title + " " + clean_desc).lower()
+
+    if "bloqueo" in mod_lower or "lock" in desc_lower or "deadlock" in desc_lower:
+        steps = (
+            "1. Abre la sección **Análisis de Bloqueos** para identificar el `SPID` raíz.\n"
+            "2. Valida la transacción abierta más antigua (`DBCC OPENTRAN` o `pg_stat_activity`).\n"
+            "3. Si es un proceso colgado sin actividad transaccional, ejecuta la terminación controlada con `matar <SPID>` desde el chat.\n"
+            "4. Revisa los niveles de aislamiento y solicita al equipo de desarrollo reducir el tiempo de transacción."
+        )
+        cause = "Contención de recursos en filas o páginas compartidas debido a transacciones abiertas no finalizadas (open transactions)."
+        draft = "Se identificó y mitigó contención de bloqueos en la base de datos. Se finalizó la sesión bloqueadora y se restableció el flujo normal de transacciones."
+    elif "tempdb" in mod_lower or "temp" in desc_lower:
+        steps = (
+            "1. Consulta el uso de archivos en **Uso de TempDB** para validar si el espacio está tomado por el Version Store o tablas temporales (#temp).\n"
+            "2. Verifica si hay consultas con sorts y hash joins masivos desbordando a disco.\n"
+            "3. Configura múltiples archivos de datos (.mdf / .ndf) de igual tamaño acordes al número de núcleos lógicos."
+        )
+        cause = "Alto consumo de TempDB generado por derrames de memoria (Spill to Workfile) o acumulación de instantáneas en Version Store (RCSI/Snapshot)."
+        draft = "Se verificó la contención en TempDB y se liberó espacio en el Version Store. Se normalizó la utilización de tablas temporales."
+    elif "disco" in mod_lower or "almacenamiento" in mod_lower or "espacio" in desc_lower:
+        steps = (
+            "1. Inspecciona el tamaño de los archivos `.ldf` o transaccionales WAL.\n"
+            "2. Realiza un respaldo del Transaction Log (`BACKUP LOG ... TO DISK`) para truncar el log virtual (VLF).\n"
+            "3. En PostgreSQL, programa `VACUUM FULL` o `pg_repack` durante ventana de mantenimiento para recuperar espacio libre del sistema operativo."
+        )
+        cause = "Crecimiento desmedido de archivos de datos o bitácora de transacciones debido a modelos de recuperación FULL sin frecuencia de respaldo adecuada."
+        draft = "Se ejecutó respaldo de bitácora y optimización de almacenamiento, liberando espacio disponible en el disco afectado."
+    else:
+        steps = (
+            "1. Revisa el **Monitor de Salud** y la gráfica de CPU/Throughput en la pestaña Telemetría 24h.\n"
+            "2. Valida el Top 10 de Consultas Lentas para aislar queries con picos de recursos.\n"
+            "3. Confirma la conectividad y latencia de red contra el host de base de datos.\n"
+            "4. Registra los cambios aplicados y valida que los tiempos de respuesta del aplicativo se encuentren dentro del SLA."
+        )
+        cause = "Degradación general de rendimiento o solicitud de soporte sobre la instancia de base de datos."
+        draft = "Se analizó el comportamiento de la instancia en el panel de telemetría y se aplicaron las validaciones requeridas según la política de servicio."
+
+    suggestion_text = f"""### 🎯 Recomendación Técnica Automatizada (Copiloto DBA)
+
+**Diagnóstico Preliminar:**
+{cause}
+
+---
+
+**🛠️ Plan de Acción Recomendado:**
+{steps}
+
+---
+
+**📝 Texto Sugerido para Notas del Agente:**
+> *"{draft}"*"""
+
+    return {
+        "success": True,
+        "suggestion": suggestion_text,
+        "suggested_notes": draft,
+        "source": "DataCheck Incident Intelligence Matrix"
+    }
+

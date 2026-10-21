@@ -56,6 +56,19 @@ class Settings:
     SMTP_USE_TLS: bool = os.getenv("SMTP_USE_TLS", "true").lower() in ("true", "1", "yes")
     OTP_EXPIRE_SECONDS: int = int(os.getenv("OTP_EXPIRE_SECONDS", "120"))
 
+    # Proactive Alert Thresholds
+    ALERT_CPU_THRESHOLD: float = float(os.getenv("ALERT_CPU_THRESHOLD", "85.0"))
+    ALERT_DEADLOCK_THRESHOLD: int = int(os.getenv("ALERT_DEADLOCK_THRESHOLD", "0"))
+    ALERT_BUFFER_CACHE_THRESHOLD: float = float(os.getenv("ALERT_BUFFER_CACHE_THRESHOLD", "90.0"))
+    ALERT_NOTIFICATION_EMAIL: str = os.getenv("ALERT_NOTIFICATION_EMAIL", "")
+
+    # Retention & Auto-Purge Policy
+    METRICS_RETENTION_DAYS: int = int(os.getenv("METRICS_RETENTION_DAYS", "30"))
+    ALERT_RETENTION_DAYS: int = int(os.getenv("ALERT_RETENTION_DAYS", "60"))
+
+    # Security & Session Inactivity
+    INACTIVITY_TIMEOUT_MINUTES: int = int(os.getenv("INACTIVITY_TIMEOUT_MINUTES", "20"))
+
     # Admin seed defaults
     ADMIN_DEFAULT_USERNAME: str = os.getenv("ADMIN_DEFAULT_USERNAME", "admin")
     ADMIN_DEFAULT_PASSWORD: str = os.getenv("ADMIN_DEFAULT_PASSWORD", "Admin123!")

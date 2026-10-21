@@ -64,6 +64,10 @@ export class IncidentManagementComponent implements OnInit {
   isViewModalOpen: boolean = false;
   viewingTicket: any = null;
 
+  // AI Solution Copilot
+  isSuggestingSolution: boolean = false;
+  aiSolutionSuggestion: any = null;
+
   // Toast feedback
   toastMessage: string = '';
   toastType: 'success' | 'error' | 'info' = 'success';
@@ -256,6 +260,33 @@ export class IncidentManagementComponent implements OnInit {
     this.isEditModalOpen = false;
     this.selectedTicket = null;
     this.isSubmittingEdit = false;
+    this.aiSolutionSuggestion = null;
+    this.isSuggestingSolution = false;
+  }
+
+  suggestSolutionWithAi(): void {
+    if (!this.editForm.id) return;
+    this.isSuggestingSolution = true;
+    this.aiSolutionSuggestion = null;
+
+    this.apiService.suggestIncidentSolution(this.editForm.id).subscribe({
+      next: (res) => {
+        this.isSuggestingSolution = false;
+        this.aiSolutionSuggestion = res;
+        this.showToast('Recomendación generada por Copiloto IA.', 'info');
+      },
+      error: (err) => {
+        this.isSuggestingSolution = false;
+        this.showToast(err.error?.detail || 'Error al generar sugerencia IA.', 'error');
+      }
+    });
+  }
+
+  insertSolutionToNotes(): void {
+    if (!this.aiSolutionSuggestion) return;
+    const notesToAdd = this.aiSolutionSuggestion.suggested_notes || this.aiSolutionSuggestion.suggestion;
+    this.editForm.notes = this.editForm.notes ? `${this.editForm.notes}\n\n${notesToAdd}` : notesToAdd;
+    this.showToast('Recomendación insertada en notas del ticket.', 'success');
   }
 
   submitUpdateTicket(): void {

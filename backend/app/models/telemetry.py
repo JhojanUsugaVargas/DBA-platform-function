@@ -1,5 +1,4 @@
-"""Telemetry and Query Store Database Models."""
-from sqlalchemy import Column, Integer, String, Float, Text, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, Float, Text, ForeignKey, DateTime, Index
 from sqlalchemy.sql import func
 from app.db.base import Base
 from app.core.config import settings
@@ -11,7 +10,12 @@ _schema_prefix = f"{settings.DB_SCHEMA}." if "postgresql" in settings.DATABASE_U
 class TelemetrySnapshot(Base):
     """Historical telemetry metrics captured periodically for an instance."""
     __tablename__ = "telemetry_snapshots"
-    __table_args__ = _schema_args
+    __table_args__ = (
+        Index("ix_telemetry_snapshots_instance_captured", "instance_id", "captured_at"),
+        _schema_args
+    ) if _schema_args else (
+        Index("ix_telemetry_snapshots_instance_captured", "instance_id", "captured_at"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     instance_id = Column(Integer, ForeignKey(f"{_schema_prefix}instances.id", ondelete="CASCADE"), nullable=True, index=True)
@@ -31,7 +35,12 @@ class TelemetrySnapshot(Base):
 class TopQueryHistory(Base):
     """Historical slow and resource-heavy queries captured from DMVs / Query Store."""
     __tablename__ = "top_queries_history"
-    __table_args__ = _schema_args
+    __table_args__ = (
+        Index("ix_top_queries_instance_captured", "instance_id", "captured_at"),
+        _schema_args
+    ) if _schema_args else (
+        Index("ix_top_queries_instance_captured", "instance_id", "captured_at"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     instance_id = Column(Integer, ForeignKey(f"{_schema_prefix}instances.id", ondelete="CASCADE"), nullable=True, index=True)

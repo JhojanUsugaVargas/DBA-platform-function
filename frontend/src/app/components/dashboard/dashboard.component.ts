@@ -255,6 +255,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // Dedicated Instance CPU Chart instance
   instanceCpuChart: any = null;
 
+  // System Alerts & Notification Bell State
+  unreadAlertsCount: number = 0;
+  systemAlerts: any[] = [];
+  isNotificationsDropdownOpen: boolean = false;
+  isAlertsLoading: boolean = false;
+  private alertsPollTimer: any = null;
+
+  // Copiloto IA: Diagnóstico de Consultas Lentas
+  isQueryDiagnosisModalOpen: boolean = false;
+  isDiagnosingQuery: boolean = false;
+  diagnosedQueryRow: any = null;
+  queryDiagnosisResult: any = null;
+
   constructor(
     private router: Router,
     private apiService: ApiService,
@@ -1133,14 +1146,21 @@ Date: 2026-10-12`;
     this.loadChatHistory();
     this.loadTelemetryOverview();
     this.checkServerMaintenanceStatus();
+    this.loadUnreadAlertsCount();
     this.maintenancePollTimer = setInterval(() => {
       this.checkServerMaintenanceStatus();
     }, 6000);
+    this.alertsPollTimer = setInterval(() => {
+      this.loadUnreadAlertsCount();
+    }, 30000);
   }
 
   ngOnDestroy() {
     if (this.maintenancePollTimer) {
       clearInterval(this.maintenancePollTimer);
+    }
+    if (this.alertsPollTimer) {
+      clearInterval(this.alertsPollTimer);
     }
     this.stopElapsedTimer();
   }
@@ -2224,5 +2244,110 @@ Date: 2026-10-12`;
 
   openIncidentsPortal(): void {
     this.router.navigate(['/admin/incidents']);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Proactive Alerts & Notification Bell Methods
+  // ---------------------------------------------------------------------------
+  toggleNotificationsDropdown(): void {
+    this.isNotificationsDropdownOpen = !this.isNotificationsDropdownOpen;
+    if (this.isNotificationsDropdownOpen) {
+      this.loadSystemAlerts();
+    }
+  }
+
+  loadUnreadAlertsCount(): void {
+    this.apiService.getUnreadAlertsCount().subscribe({
+      next: (res) => {
+        this.unreadAlertsCount = res?.unread_count || 0;
+      },
+      error: () => {}
+    });
+  }
+
+  loadSystemAlerts(): void {
+    this.isAlertsLoading = true;
+    this.apiService.getAlerts(false, 30).subscribe({
+      next: (alerts) => {
+        this.systemAlerts = alerts || [];
+        this.isAlertsLoading = false;
+      },
+      error: () => {
+        this.isAlertsLoading = false;
+      }
+    });
+  }
+
+  markAlertAsRead(alert: any, event?: Event): void {
+    if (event) event.stopPropagation();
+    this.apiService.markAlertRead(alert.id).subscribe({
+      next: () => {
+        alert.is_read = true;
+        this.unreadAlertsCount = Math.max(0, this.unreadAlertsCount - 1);
+        this.toast.info('Alerta marcada como leída.', 'Notificaciones');
+      }
+    });
+  }
+
+  markAllAlertsAsRead(): void {
+    this.apiService.markAllAlertsRead().subscribe({
+      next: () => {
+        this.systemAlerts.forEach(a => a.is_read = true);
+        this.unreadAlertsCount = 0;
+        this.toast.success('Todas las alertas fueron marcadas como leídas.', 'Notificaciones');
+      }
+    });
+  }
+
+  deleteAlertItem(alert: any, event?: Event): void {
+    if (event) event.stopPropagation();
+    this.apiService.deleteAlert(alert.id).subscribe({
+      next: () => {
+        this.systemAlerts = this.systemAlerts.filter(a => a.id !== alert.id);
+        if (!alert.is_read) {
+          this.unreadAlertsCount = Math.max(0, this.unreadAlertsCount - 1);
+        }
+        this.toast.info('Alerta eliminada.', 'Notificaciones');
+      }
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Copiloto IA: Diagnóstico de Consultas Lentas
+  // ---------------------------------------------------------------------------
+  diagnoseQueryWithAi(row: any): void {
+    if (!row || !row.consulta_sql) {
+      this.toast.warning('No se encontró el texto SQL para diagnosticar.');
+      return;
+    }
+    this.diagnosedQueryRow = row;
+    this.isQueryDiagnosisModalOpen = true;
+    this.isDiagnosingQuery = true;
+    this.queryDiagnosisResult = null;
+
+    const payload = {
+      query_text: row.consulta_sql,
+      engine: this.telemetryData?.kpis?.engine?.toLowerCase() || 'sqlserver',
+      execution_count: row.ejecuciones || 1,
+      cpu_total_ms: row.cpu_total_ms || 0,
+      logical_reads: row.lecturas_logicas || 0
+    };
+
+    this.apiService.diagnoseQuery(payload).subscribe({
+      next: (res) => {
+        this.isDiagnosingQuery = false;
+        this.queryDiagnosisResult = res;
+      },
+      error: (err) => {
+        this.isDiagnosingQuery = false;
+        this.toast.error(err.error?.detail || 'Error al solicitar diagnóstico a Copiloto IA.');
+      }
+    });
+  }
+
+  closeQueryDiagnosisModal(): void {
+    this.isQueryDiagnosisModalOpen = false;
+    this.diagnosedQueryRow = null;
+    this.queryDiagnosisResult = null;
   }
 }

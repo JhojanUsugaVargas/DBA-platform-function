@@ -171,6 +171,64 @@
             </div>
 
             <div style="display: flex; align-items: center; gap: 10px;">
+                <!-- Notification Bell & Proactive Alerts Dropdown -->
+                <div class="notifications-bell-wrapper" style="position: relative;">
+                    <button type="button" (click)="toggleNotificationsDropdown()" title="Campana de Alertas y Notificaciones Proactivas" style="position: relative; background: rgba(255,255,255,0.06); border: 1px solid var(--border-subtle); color: var(--text-primary); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+                        <span>🔔</span>
+                        <span *ngIf="unreadAlertsCount > 0" class="bell-counter-badge" style="background: #ef4444; color: white; border-radius: 10px; padding: 1px 6px; font-size: 10px; font-weight: 700; font-family: monospace; box-shadow: 0 0 8px rgba(239,68,68,0.8); animation: pulse 2s infinite;">
+                            {{ unreadAlertsCount > 9 ? '9+' : unreadAlertsCount }}
+                        </span>
+                    </button>
+
+                    <!-- Dropdown Panel -->
+                    <div *ngIf="isNotificationsDropdownOpen" [@popIn] class="notifications-dropdown-menu" style="position: absolute; right: 0; top: 40px; width: 380px; max-width: 90vw; background: #121522; border: 1px solid rgba(0, 229, 255, 0.3); border-radius: 12px; box-shadow: 0 20px 50px rgba(0,0,0,0.85); z-index: 1050; overflow: hidden; display: flex; flex-direction: column;">
+                        <div style="padding: 12px 16px; background: rgba(0,0,0,0.4); border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 15px;">🔔</span>
+                                <span style="font-size: 13px; font-weight: 600; color: white;">Alertas Proactivas</span>
+                                <span *ngIf="unreadAlertsCount > 0" style="font-size: 10.5px; background: rgba(239,68,68,0.2); color: #f87171; border: 1px solid rgba(239,68,68,0.4); padding: 1px 6px; border-radius: 10px; font-weight: 600;">{{ unreadAlertsCount }} no leídas</span>
+                            </div>
+                            <div style="display: flex; gap: 6px;">
+                                <button *ngIf="unreadAlertsCount > 0" type="button" (click)="markAllAlertsAsRead()" style="background: transparent; border: none; color: var(--cyan); font-size: 11px; cursor: pointer; text-decoration: underline;">
+                                    Marcar leídas
+                                </button>
+                                <button type="button" (click)="isNotificationsDropdownOpen = false" style="background: transparent; border: none; color: var(--text-muted); font-size: 14px; cursor: pointer;">✕</button>
+                            </div>
+                        </div>
+
+                        <!-- Alerts List -->
+                        <div style="max-height: 360px; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+                            <div *ngIf="isAlertsLoading" style="text-align: center; padding: 25px; color: var(--text-muted); font-size: 12px;">
+                                Cargando alertas del sistema...
+                            </div>
+                            <div *ngIf="!isAlertsLoading && systemAlerts.length === 0" style="text-align: center; padding: 25px; color: var(--text-muted); font-size: 12px;">
+                                ✅ No hay anomalías activas. Todo opera dentro de los umbrales normales.
+                            </div>
+                            <div *ngFor="let alert of systemAlerts" [style.background]="alert.is_read ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.06)'" [style.border-left]="alert.severity === 'CRITICAL' ? '3px solid #ef4444' : '3px solid #f59e0b'" style="border-radius: 6px; padding: 10px 12px; border: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; gap: 4px; transition: background 0.2s;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 6px; border-radius: 4px;" [ngStyle]="{'background': alert.severity === 'CRITICAL' ? 'rgba(239,68,68,0.2)' : 'rgba(245,158,11,0.2)', 'color': alert.severity === 'CRITICAL' ? '#f87171' : '#fbbf24'}">
+                                        {{ alert.severity }} • {{ alert.metric_name }}
+                                    </span>
+                                    <span style="font-size: 10.5px; color: var(--text-muted); font-family: monospace;">{{ alert.created_at ? (alert.created_at | date:'shortTime') : '' }}</span>
+                                </div>
+                                <div style="font-size: 12.5px; font-weight: 600; color: white; margin-top: 2px;">{{ alert.title }}</div>
+                                <div style="font-size: 11.5px; color: #cbd5e1; line-height: 1.4;">{{ alert.message }}</div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; pt: 4px; font-size: 10.5px; color: var(--text-muted); border-top: 1px solid rgba(255,255,255,0.04);">
+                                    <span>Instancia: <strong style="color: var(--cyan);">{{ alert.instance_name }}</strong></span>
+                                    <div style="display: flex; gap: 6px;">
+                                        <button *ngIf="!alert.is_read" type="button" (click)="markAlertAsRead(alert, $event)" title="Marcar como leída" style="background: rgba(0,230,118,0.1); border: 1px solid rgba(0,230,118,0.3); color: #00e676; padding: 1px 6px; border-radius: 4px; font-size: 10.5px; cursor: pointer;">✓ Leída</button>
+                                        <button type="button" (click)="deleteAlertItem(alert, $event)" title="Eliminar alerta" style="background: transparent; border: none; color: #94a3b8; font-size: 11px; cursor: pointer;">🗑️</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="padding: 8px 14px; background: rgba(0,0,0,0.5); border-top: 1px solid rgba(255,255,255,0.08); font-size: 10.5px; color: var(--text-muted); text-align: center;">
+                            Supervisión proactiva periódica cada 10 min
+                        </div>
+                    </div>
+                </div>
+
                 <button (click)="loadTelemetryOverview()" title="Refrescar Telemetría" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: var(--text-primary); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 6px;">
                     🔄 <span>Refrescar</span>
                 </button>
@@ -529,8 +587,8 @@
                         <span style="font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px;">
                             <span>📊</span> Registros: <strong style="color: white;">{{ getActionData().length }}</strong>
                         </span>
-                        <button type="button" (click)="exportCurrentTableToCsv(getActionTitle())" style="background: rgba(0,229,255,0.1); border: 1px solid rgba(0,229,255,0.3); color: var(--cyan); padding: 5px 12px; border-radius: 6px; font-size: 11.5px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 500;">
-                            📥 <span>Descargar CSV</span>
+                        <button type="button" (click)="exportCurrentTableToCsv(getActionTitle())" style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.35); color: #34d399; padding: 6px 14px; border-radius: 6px; font-size: 11.5px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 600;">
+                            📊 <span>Exportar a Excel (CSV)</span>
                         </button>
                     </div>
                     <div style="overflow-x: auto;">
@@ -544,9 +602,10 @@
                                 <tr *ngFor="let row of getActionData()" class="table-row-animated" style="border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
                                     <td *ngFor="let key of getKeys(row)" style="padding: 12px; white-space: nowrap;">
                                         <ng-container *ngIf="key === 'consulta_sql'; else standardCell">
-                                            <div style="display: flex; align-items: center; gap: 8px; max-width: 480px;">
+                                            <div style="display: flex; align-items: center; gap: 8px; max-width: 540px;">
                                                 <code style="background: #000; padding: 3px 6px; border-radius: 4px; color: #38bdf8; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">{{ row[key] }}</code>
                                                 <button type="button" (click)="copyQuerySql(row[key])" title="Copiar consulta SQL" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #cbd5e1; padding: 2px 7px; border-radius: 4px; font-size: 11px; cursor: pointer; white-space: nowrap;">📋 Copiar</button>
+                                                <button type="button" (click)="diagnoseQueryWithAi(row)" title="Analizar con Copiloto IA DBA (Sugerir índices y reescritura)" style="background: rgba(0, 229, 255, 0.15); border: 1px solid rgba(0, 229, 255, 0.4); color: #00e5ff; padding: 2px 9px; border-radius: 4px; font-size: 11px; cursor: pointer; white-space: nowrap; font-weight: 600; display: flex; align-items: center; gap: 4px;">🪄 Diagnosticar con IA</button>
                                             </div>
                                         </ng-container>
                                         <ng-template #standardCell>{{ row[key] }}</ng-template>
@@ -1043,8 +1102,8 @@
                     </p>
                 </div>
                 <div style="display: flex; align-items: center; gap: 10px;">
-                    <button (click)="exportAuditToCsv()" title="Exportar registros de auditoría a CSV / Excel" style="background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.3); color: #6ee7b7; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500;">
-                        📥 Exportar CSV
+                    <button (click)="exportAuditToCsv()" title="Exportar registros de auditoría a formato Excel / CSV" style="background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.35); color: #34d399; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                        📊 <span>Exportar a Excel (CSV)</span>
                     </button>
                     <button (click)="loadAuditLogs()" title="Refrescar auditoría" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;">
                         🔄 Refrescar
@@ -1533,6 +1592,78 @@
                 <button type="button" (click)="cancelDeleteAccount()" [disabled]="isDeletingAccount" style="flex: 1; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); color: var(--text-secondary); border-radius: 8px; cursor: pointer;">Cancelar</button>
                 <button type="button" (click)="confirmDeleteAccount()" [disabled]="isDeletingAccount" style="flex: 1.5; padding: 10px; background: #dc2626; border: none; color: white; border-radius: 8px; font-weight: 600; cursor: pointer;">
                     {{ isDeletingAccount ? 'Eliminando...' : 'Sí, Eliminar Mis Datos' }}
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Copiloto IA: Diagnóstico de Consulta Lenta -->
+    <div *ngIf="isQueryDiagnosisModalOpen" [@popIn] class="modal-overlay" role="dialog" aria-modal="true" aria-label="Diagnóstico de Consulta con IA" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); backdrop-filter: blur(12px); display: flex; align-items: center; justify-content: center; z-index: 100050;">
+        <div class="modal-content" style="background: #111422; width: 850px; max-width: 95vw; padding: 28px; border-radius: 16px; border: 1px solid rgba(0, 229, 255, 0.4); box-shadow: 0 25px 60px rgba(0,0,0,0.9); max-height: 88vh; display: flex; flex-direction: column;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 14px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="background: rgba(0,229,255,0.15); border: 1px solid rgba(0,229,255,0.4); width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px;">
+                        🪄
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; font-size: 17px; font-weight: 700; color: white;">Copiloto DBA: Diagnóstico y Afinamiento de Consulta</h3>
+                        <span style="font-size: 11.5px; color: var(--cyan);">Optimización de índices, anti-patrones y planes de ejecución</span>
+                    </div>
+                </div>
+                <button type="button" (click)="closeQueryDiagnosisModal()" style="background: transparent; border: none; color: var(--text-secondary); font-size: 20px; cursor: pointer;">✕</button>
+            </div>
+
+            <!-- Query Info Card -->
+            <div style="background: rgba(0,0,0,0.4); border: 1px solid var(--border-subtle); border-radius: 10px; padding: 14px; margin-bottom: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Consulta SQL Evaluada</span>
+                    <button type="button" (click)="copyQuerySql(diagnosedQueryRow?.consulta_sql)" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); color: #cbd5e1; padding: 2px 8px; border-radius: 4px; font-size: 11px; cursor: pointer;">📋 Copiar SQL</button>
+                </div>
+                <pre style="background: #000000; padding: 10px 14px; border-radius: 6px; font-family: var(--font-mono); font-size: 11.5px; color: #38bdf8; overflow-x: auto; max-height: 90px; margin: 0; white-space: pre-wrap;">{{ diagnosedQueryRow?.consulta_sql }}</pre>
+                <div style="display: flex; gap: 14px; margin-top: 10px; font-size: 11.5px; color: var(--text-secondary);">
+                    <span>Ejecuciones: <strong style="color: white;">{{ diagnosedQueryRow?.ejecuciones || 1 }}</strong></span>
+                    <span>CPU Total: <strong style="color: #fbbf24;">{{ diagnosedQueryRow?.cpu_total_ms || 0 }} ms</strong></span>
+                    <span>Lecturas Lógicas: <strong style="color: #34d399;">{{ diagnosedQueryRow?.lecturas_logicas || 0 }}</strong></span>
+                </div>
+            </div>
+
+            <!-- Analysis Output -->
+            <div style="flex: 1; overflow-y: auto; padding-right: 6px;">
+                <div *ngIf="isDiagnosingQuery" style="text-align: center; padding: 40px 20px; display: flex; flex-direction: column; align-items: center; gap: 14px;">
+                    <div style="width: 42px; height: 42px; border: 3px solid rgba(0,229,255,0.2); border-top-color: var(--cyan); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                    <div style="color: white; font-size: 14px; font-weight: 600;">Analizando estructura SQL y patrones de acceso...</div>
+                    <div style="color: var(--text-muted); font-size: 12px; max-width: 440px;">
+                        DataCheck Copilot está verificando sargabilidad, anti-patrones en predicados y proponiendo índices de cobertura óptimos.
+                    </div>
+                </div>
+
+                <div *ngIf="!isDiagnosingQuery && queryDiagnosisResult" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 18px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.06);">
+                        <span style="font-size: 11px; padding: 2px 8px; border-radius: 10px; background: rgba(0,229,255,0.15); color: var(--cyan); font-weight: 600;">
+                            Fuente: {{ queryDiagnosisResult.source }}
+                        </span>
+                        <button type="button" (click)="copyQuerySql(queryDiagnosisResult.diagnosis)" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); color: #cbd5e1; padding: 3px 10px; border-radius: 4px; font-size: 11px; cursor: pointer;">
+                            📋 Copiar Informe
+                        </button>
+                    </div>
+
+                    <div style="color: #e2e8f0; font-size: 13px; line-height: 1.6; white-space: pre-wrap; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                        {{ queryDiagnosisResult.diagnosis }}
+                    </div>
+
+                    <div *ngIf="queryDiagnosisResult.suggested_index" style="margin-top: 16px; background: rgba(0,0,0,0.5); border: 1px solid rgba(16,185,129,0.3); border-radius: 8px; padding: 12px 14px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <span style="font-size: 11px; font-weight: 700; color: #34d399; text-transform: uppercase;">⚡ Sentencia DDL Recomendada</span>
+                            <button type="button" (click)="copyQuerySql(queryDiagnosisResult.suggested_index)" style="background: rgba(16,185,129,0.2); border: 1px solid rgba(16,185,129,0.4); color: #6ee7b7; padding: 2px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: 600;">📋 Copiar DDL</button>
+                        </div>
+                        <code style="color: #a7f3d0; font-family: var(--font-mono); font-size: 12px; display: block;">{{ queryDiagnosisResult.suggested_index }}</code>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: 18px; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px;">
+                <button type="button" (click)="closeQueryDiagnosisModal()" style="padding: 9px 18px; background: rgba(255,255,255,0.06); border: 1px solid var(--border-subtle); color: var(--text-primary); border-radius: 8px; font-size: 12.5px; cursor: pointer;">
+                    Cerrar
                 </button>
             </div>
         </div>

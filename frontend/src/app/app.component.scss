@@ -1,0 +1,143 @@
+.inactivity-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeIn 0.25s ease-out forwards;
+}
+
+.inactivity-modal-card {
+  width: 100%;
+  max-width: 480px;
+  background: #111420;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: 16px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.9), 0 0 30px rgba(245, 158, 11, 0.15);
+  padding: 32px 28px;
+  text-align: center;
+  color: #e2e8f0;
+  animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.inactivity-icon-badge {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 16px;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.2);
+}
+
+.inactivity-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #fbbf24;
+  margin: 0 0 10px;
+  letter-spacing: -0.3px;
+}
+
+.inactivity-desc {
+  font-size: 13.5px;
+  color: #cbd5e1;
+  margin: 0 0 20px;
+  line-height: 1.5;
+}
+
+.inactivity-countdown-box {
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.countdown-number {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 42px;
+  font-weight: 800;
+  color: #f59e0b;
+  text-shadow: 0 0 15px rgba(245, 158, 11, 0.4);
+  line-height: 1;
+}
+
+.countdown-label {
+  font-size: 11px;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 6px;
+}
+
+.inactivity-subdesc {
+  font-size: 12px;
+  color: #94a3b8;
+  margin: 0 0 24px;
+  line-height: 1.4;
+}
+
+.inactivity-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.btn-stay-active {
+  flex: 1;
+  background: #00e5ff;
+  color: #0b0c10;
+  font-weight: 700;
+  font-size: 13.5px;
+  padding: 12px 18px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 14px rgba(0, 229, 255, 0.3);
+
+  &:hover {
+    background: #33ebff;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(0, 229, 255, 0.45);
+  }
+}
+
+.btn-logout-now {
+  background: rgba(255, 255, 255, 0.06);
+  color: #94a3b8;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 12px 18px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.35);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.92); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}

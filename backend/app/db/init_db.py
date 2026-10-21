@@ -18,6 +18,7 @@ def create_tables() -> None:
 
         Base.metadata.create_all(bind=engine)
         ensure_user_privacy_columns()
+        ensure_telemetry_indexes()
         logging.info("Database tables initialized successfully.")
 
         # Seed default admin and maintenance state
@@ -56,6 +57,22 @@ def ensure_user_privacy_columns() -> None:
                 conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}"))
                 logging.info(f"Migración: columna users.{name} agregada.")
         conn.commit()
+
+
+def ensure_telemetry_indexes() -> None:
+    """Ensure composite indexes exist for instant 24h and 7d telemetry performance."""
+    schema = settings.DB_SCHEMA if "postgresql" in settings.DATABASE_URL and settings.DB_SCHEMA else None
+    schema_prefix = f'"{schema}".' if schema else ""
+    try:
+        with engine.connect() as conn:
+            if "postgresql" in settings.DATABASE_URL:
+                conn.execute(text(f"CREATE INDEX IF NOT EXISTS ix_telemetry_instance_captured ON {schema_prefix}telemetry_snapshots (instance_id, captured_at DESC);"))
+                conn.execute(text(f"CREATE INDEX IF NOT EXISTS ix_top_queries_instance_captured ON {schema_prefix}top_queries_history (instance_id, captured_at DESC);"))
+                conn.execute(text(f"CREATE INDEX IF NOT EXISTS ix_system_alerts_instance_read ON {schema_prefix}system_alerts (instance_id, is_read, created_at DESC);"))
+                conn.commit()
+                logging.info("Optimized telemetry & alert indexes verified in PostgreSQL.")
+    except Exception as exc:
+        logging.warning("No se pudieron verificar los índices compuestos automáticos: %s", exc)
 
 
 def seed_default_admin(session) -> None:

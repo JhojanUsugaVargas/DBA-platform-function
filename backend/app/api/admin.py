@@ -1,7 +1,7 @@
 """Administrative Management Endpoints."""
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user, role_required
@@ -507,6 +507,73 @@ def delete_incident(
     )
 
     return {"success": True, "message": f"Ticket #{incident_id} eliminado exitosamente."}
+
+
+class SuggestIncidentSolutionPayload(BaseModel):
+    title: str
+    description: str
+    module: Optional[str] = "General"
+    priority: Optional[str] = "Media"
+    ticket_type: Optional[str] = "Incidente"
+
+
+@router.post("/incidents/{incident_id}/suggest-solution", summary="Suggest resolution using AI Copilot")
+def suggest_incident_solution_endpoint(
+    incident_id: int,
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(get_current_user)
+):
+    """Generates AI technical resolution steps and agent notes for an incident."""
+    from app.models.incident import Incident
+    from app.services.ai_service import suggest_incident_solution
+
+    inc = db.query(Incident).filter(Incident.id == incident_id).first()
+    if not inc:
+        raise HTTPException(status_code=404, detail="Ticket no encontrado")
+
+    return suggest_incident_solution(
+        title=inc.title,
+        description=inc.description,
+        module=inc.module,
+        priority=inc.priority,
+        ticket_type=inc.ticket_type
+    )
+
+
+@router.post("/incidents/suggest-solution", summary="Suggest resolution for draft ticket using AI")
+def suggest_draft_solution_endpoint(
+    payload: SuggestIncidentSolutionPayload,
+    _: Dict[str, Any] = Depends(get_current_user)
+):
+    """Generates AI technical resolution steps for draft ticket data."""
+    from app.services.ai_service import suggest_incident_solution
+    return suggest_incident_solution(
+        title=payload.title,
+        description=payload.description,
+        module=payload.module or "General",
+        priority=payload.priority or "Media",
+        ticket_type=payload.ticket_type or "Incidente"
+    )
+
+
+@router.post("/system/purge-telemetry", summary="Trigger manual purge of old telemetry data")
+def manual_purge_telemetry(
+    days: Optional[int] = Query(None, ge=1, le=365),
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(role_required("Administrador"))
+):
+    """Manually purge telemetry snapshots, old top queries, and read alerts."""
+    admin_username = _.get("username", "admin") if isinstance(_, dict) else "admin"
+    from app.services.scheduler_service import purge_old_telemetry_metrics
+    res = purge_old_telemetry_metrics(days=days)
+    audit_repo.log_action(
+        db=db,
+        username=admin_username,
+        action="PURGE_TELEMETRY",
+        status="SUCCESS",
+        details=f"Purga manual de telemetría ejecutada (Retención: {res.get('retention_days')} días). Snapshots: {res.get('snapshots_deleted')}, Consultas: {res.get('top_queries_deleted')}, Alertas: {res.get('alerts_deleted')}."
+    )
+    return {"success": True, "result": res, "message": "Purga de telemetría completada exitosamente."}
 
 
 class ResendInvitationRequest(BaseModel):
